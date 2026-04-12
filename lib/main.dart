@@ -11,12 +11,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Auboo Travel',
+      title: 'Ayubo Travel',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Roboto',
+        primaryColor: const Color(0xFF2C3E50),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2C3E50),
+          primary: const Color(0xFF2C3E50),
+          secondary: const Color(0xFF3498DB),
+        ),
+        fontFamily: 'Poppins',
         visualDensity: VisualDensity.adaptivePlatformDensity,
+        scaffoldBackgroundColor: Colors.white,
       ),
       initialRoute: AppRouter.login,
       onGenerateRoute: AppRouter.onGenerateRoute,
