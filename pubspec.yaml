@@ -36,6 +36,10 @@ dependencies:
   cached_network_image: ^3.3.1
 
   cupertino_icons: ^1.0.8
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  geolocator: ^11.0.0
+  
 
 dev_dependencies:
   flutter_test:
@@ -61,6 +65,8 @@ flutter:
 
   assets:
     - lib/assets/images/login.png
+
+ 
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -92,3 +98,4 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
