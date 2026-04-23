@@ -1,7 +1,9 @@
+import 'package:auboo_travel/services/api_service.dart';
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
 import 'profile_page.dart';
 import 'explore_screen.dart';
+import 'saved_page.dart';
+import 'bucket_page.dart'; // ⭐ BucketPage import කරන්න
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -66,20 +68,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   // --- NAVIGATION PAGES ---
-
   final List<Widget> _pages = [
     const HomeBody(),
     const ExploreScreen(),
-    const Center(child: Text("Bucket Page Coming Soon")), // Index 2
-    const Center(child: Text("Saved Page Coming Soon")), // Index 3
-    const ProfilePage(), // Index 4
+    const BucketPage(), // ⭐ Bucket Page එක දාන්න (Coming Soon නෙවෙයි)
+    const SavedPage(),
+    const ProfilePage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-
       body: _currentIndex == 0 ? _buildHomeContent() : _pages[_currentIndex],
       bottomNavigationBar: _buildBottomNavBar(),
     );
@@ -247,8 +247,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDestinationsList() {
-    if (_destinations.isEmpty)
+    if (_destinations.isEmpty) {
       return const Center(child: Text('No destinations found'));
+    }
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       itemCount: _destinations.length,
@@ -282,6 +283,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDestinationCard(Map<String, dynamic> destination) {
+    final isSaved = ApiService.isDestinationSaved(destination['id']);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
@@ -298,23 +301,72 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            child: Image.network(
-              destination['imageUrl'],
-              height: 200,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                height: 200,
-                color: Colors.grey[200],
-                child: const Icon(
-                  Icons.broken_image,
-                  size: 50,
-                  color: Colors.grey,
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+                child: Image.network(
+                  destination['imageUrl'],
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 200,
+                    color: Colors.grey[200],
+                    child: const Icon(
+                      Icons.broken_image,
+                      size: 50,
+                      color: Colors.grey,
+                    ),
+                  ),
                 ),
               ),
-            ),
+              // Save Button (Heart Icon)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      ApiService.toggleSaveDestination(destination);
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isSaved
+                              ? 'Removed from saved places'
+                              : 'Added to saved places',
+                        ),
+                        backgroundColor: isSaved
+                            ? Colors.orange
+                            : const Color(0xFF3498DB),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      isSaved ? Icons.favorite : Icons.favorite_border,
+                      color: isSaved ? Colors.red : Colors.grey,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           Padding(
             padding: const EdgeInsets.all(15),
@@ -324,11 +376,14 @@ class _HomePageState extends State<HomePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      destination['name'],
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        destination['name'],
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Container(
@@ -433,6 +488,7 @@ class _HomePageState extends State<HomePage> {
 // Home Body Placeholder
 class HomeBody extends StatelessWidget {
   const HomeBody({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Container();
