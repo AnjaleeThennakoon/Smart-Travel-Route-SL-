@@ -456,4 +456,36 @@ class ApiService {
           'https://images.unsplash.com/photo-1585939535763-5f6b18f1c0b3?w=500',
     },
   ];
+
+  // ==================== SAVED DESTINATIONS ====================
+
+  // Saved destinations storage
+  static final List<Map<String, dynamic>> _savedDestinations = [];
+
+  // Get saved destinations
+  static List<Map<String, dynamic>> getSavedDestinations() {
+    return _savedDestinations;
+  }
+
+  // Toggle save destination (add or remove)
+  static void toggleSaveDestination(Map<String, dynamic> destination) {
+    final index = _savedDestinations.indexWhere(
+      (d) => d['id'] == destination['id'],
+    );
+    if (index == -1) {
+      _savedDestinations.add(destination);
+    } else {
+      _savedDestinations.removeAt(index);
+    }
+  }
+
+  // Check if destination is saved
+  static bool isDestinationSaved(String id) {
+    return _savedDestinations.any((d) => d['id'] == id);
+  }
+
+  // Clear all saved destinations (optional)
+  static void clearAllSavedDestinations() {
+    _savedDestinations.clear();
+  }
 }

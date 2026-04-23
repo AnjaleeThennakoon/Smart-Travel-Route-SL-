@@ -470,7 +470,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     DropdownButtonFormField<String>(
-                                      value: _selectedCountry,
+                                      initialValue: _selectedCountry,
                                       hint: const Text('Select Country'),
                                       decoration: _inputDecoration(
                                         'Country',
