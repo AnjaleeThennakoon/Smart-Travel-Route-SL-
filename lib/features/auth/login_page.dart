@@ -34,6 +34,7 @@ class _LoginPageState extends State<LoginPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Reset Password'),
         content: const Text('Send a password reset link to your email?'),
         actions: [
@@ -60,7 +61,7 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image (your login.png)
+          // Background Image
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -69,8 +70,8 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          // Dark overlay for better text visibility
-          Container(color: Colors.black.withOpacity(0.5)),
+          // Dark overlay
+          Container(color: Colors.black.withOpacity(0.4)),
           // Login Form
           SafeArea(
             child: Center(
@@ -79,25 +80,42 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Ayubo Logo / Brand
+                    // Ayubo Logo / Brand - Beautiful Design
                     Container(
                       padding: const EdgeInsets.all(20),
-                      child: const Text(
-                        'Ayubo',
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 2,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 10,
-                              color: Colors.black26,
-                              offset: Offset(0, 2),
+                      child: Column(
+                        children: [
+                          // Glowing gradient text
+                          ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [
+                                Color(0xFF2D9C7C),
+                                Color(0xFF1C6E8F),
+                                Color(0xFF3498DB),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ).createShader(bounds),
+                            child: const Text(
+                              'Ayubo',
+                              style: TextStyle(
+                                fontSize: 52,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 2,
+                                shadows: [
+                                  Shadow(
+                                    blurRadius: 15,
+                                    color: Colors.black26,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                          ],
-                        ),
-                        textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -108,8 +126,8 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 20,
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 25,
                             offset: const Offset(0, 10),
                           ),
                         ],
@@ -132,7 +150,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Sign in to continue',
+                                'Sign in to continue your journey',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[600],
@@ -291,10 +309,7 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     child: Text(
                                       'or',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                      style: TextStyle(color: Colors.grey[600]),
                                     ),
                                   ),
                                   Expanded(
