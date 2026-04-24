@@ -24,7 +24,6 @@ class _RegisterPageState extends State<RegisterPage> {
   String _countryCode = '+94';
   List<String> _countries = [];
 
-  // Field error messages
   String? _nameError;
   String? _emailError;
   String? _countryError;
@@ -52,7 +51,6 @@ class _RegisterPageState extends State<RegisterPage> {
     });
   }
 
-  // Real-time validation for each field
   void _validateName(String value) {
     setState(() {
       if (value.isEmpty) {
@@ -98,8 +96,6 @@ class _RegisterPageState extends State<RegisterPage> {
       } else {
         _passwordError = null;
       }
-
-      // Also validate confirm password if it has value
       if (_confirmCtrl.text.isNotEmpty) {
         if (_confirmCtrl.text != value) {
           _confirmError = 'Passwords do not match';
@@ -122,78 +118,6 @@ class _RegisterPageState extends State<RegisterPage> {
     });
   }
 
-  // Show Success Dialog and navigate to login
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Column(
-            children: const [
-              Icon(Icons.check_circle, color: Colors.green, size: 60),
-              SizedBox(height: 10),
-              Text(
-                'Registration Successful!',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          content: const Text(
-            'Your account has been created successfully.\nPlease login to continue.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16),
-          ),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pushReplacementNamed(context, AppRouter.login);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('Cancel', style: TextStyle(fontSize: 16)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pushReplacementNamed(context, AppRouter.login);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2C3E50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text(
-                      'OK',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Show Error Dialog
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -204,23 +128,19 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           title: Column(
             children: const [
-              Icon(Icons.error_outline, color: Colors.red, size: 60),
+              Icon(Icons.error_outline, color: Colors.red, size: 50),
               SizedBox(height: 10),
               Text(
                 'Registration Failed!',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16),
-          ),
+          content: Text(message, textAlign: TextAlign.center),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Try Again', style: TextStyle(fontSize: 16)),
+              child: const Text('Try Again'),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
@@ -236,7 +156,6 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _register() async {
-    // Check all fields before submission
     bool isValid = true;
 
     if (_nameCtrl.text.isEmpty) {
@@ -304,7 +223,6 @@ class _RegisterPageState extends State<RegisterPage> {
         const SnackBar(
           content: Text('Please fill all fields correctly'),
           backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
         ),
       );
       return;
@@ -326,16 +244,12 @@ class _RegisterPageState extends State<RegisterPage> {
         setState(() => _isLoading = false);
 
         if (result['success'] == true) {
-          // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result['message'] ?? 'Registration successful!'),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 1),
             ),
           );
-
-          // DIRECTLY GO TO HOME PAGE (NOT LOGIN)
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
               Navigator.pushReplacementNamed(context, AppRouter.home);
@@ -368,274 +282,333 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('lib/assets/images/login.png'),
-                fit: BoxFit.cover,
-              ),
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('lib/assets/images/login.png'),
+            fit: BoxFit.cover,
           ),
-          Container(color: Colors.black.withOpacity(0.5)),
-          SafeArea(
-            child: Stack(
-              children: [
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              children: [
-                                const Text(
-                                  'Ayubo',
-                                  style: TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF2C3E50),
+        ),
+        child: Container(
+          color: Colors.black.withOpacity(0.4),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 20,
+                ),
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Logo
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [
+                                Color(0xFF2D9C7C),
+                                Color(0xFF1C6E8F),
+                                Color(0xFF3498DB),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ).createShader(bounds),
+                            child: const Text(
+                              'Ayubo',
+                              style: TextStyle(
+                                fontSize: 48,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 2,
+                                shadows: [
+                                  Shadow(
+                                    blurRadius: 15,
+                                    color: Colors.black26,
+                                    offset: Offset(0, 3),
                                   ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Registration Card
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 25,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2C3E50),
                                 ),
-                                const SizedBox(height: 20),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Join Ayubo and start your journey',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 25),
 
-                                // Full Name Field
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildField(
-                                      _nameCtrl,
-                                      'Full Name',
-                                      Icons.person,
-                                      onChanged: _validateName,
+                              // Full Name Field
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildField(
+                                    _nameCtrl,
+                                    'Full Name',
+                                    Icons.person,
+                                    onChanged: _validateName,
+                                  ),
+                                  if (_nameError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 12,
+                                        top: 5,
+                                      ),
+                                      child: Text(
+                                        _nameError!,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                    if (_nameError != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 12,
-                                          top: 5,
-                                        ),
-                                        child: Text(
-                                          _nameError!,
-                                          style: const TextStyle(
-                                            color: Colors.red,
-                                            fontSize: 12,
-                                          ),
+                                ],
+                              ),
+                              const SizedBox(height: 15),
+
+                              // Email Field
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildField(
+                                    _emailCtrl,
+                                    'Email',
+                                    Icons.email,
+                                    isEmail: true,
+                                    onChanged: _validateEmail,
+                                  ),
+                                  if (_emailError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 12,
+                                        top: 5,
+                                      ),
+                                      child: Text(
+                                        _emailError!,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 12,
                                         ),
                                       ),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-
-                                // Email Field
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildField(
-                                      _emailCtrl,
-                                      'Email',
-                                      Icons.email,
-                                      isEmail: true,
-                                      onChanged: _validateEmail,
                                     ),
-                                    if (_emailError != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 12,
-                                          top: 5,
-                                        ),
-                                        child: Text(
-                                          _emailError!,
-                                          style: const TextStyle(
-                                            color: Colors.red,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
+                                ],
+                              ),
+                              const SizedBox(height: 15),
 
-                                // Country Dropdown
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    DropdownButtonFormField<String>(
-                                      initialValue: _selectedCountry,
-                                      hint: const Text('Select Country'),
-                                      decoration: _inputDecoration(
-                                        'Country',
-                                        Icons.public,
-                                      ),
-                                      items: _countries.map((country) {
-                                        return DropdownMenuItem(
-                                          value: country,
-                                          child: Text(
-                                            '$country (${ApiService.getCountryCode(country)})',
-                                          ),
-                                        );
-                                      }).toList(),
-                                      onChanged: _updateCountryCode,
+                              // Country Dropdown
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  DropdownButtonFormField<String>(
+                                    value: _selectedCountry,
+                                    hint: const Text('Select Country'),
+                                    decoration: _inputDecoration(
+                                      'Country',
+                                      Icons.public,
                                     ),
-                                    if (_countryError != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 12,
-                                          top: 5,
-                                        ),
+                                    items: _countries.map((country) {
+                                      return DropdownMenuItem(
+                                        value: country,
                                         child: Text(
-                                          _countryError!,
-                                          style: const TextStyle(
-                                            color: Colors.red,
-                                            fontSize: 12,
-                                          ),
+                                          '$country (${ApiService.getCountryCode(country)})',
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: _updateCountryCode,
+                                  ),
+                                  if (_countryError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 12,
+                                        top: 5,
+                                      ),
+                                      child: Text(
+                                        _countryError!,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 12,
                                         ),
                                       ),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-
-                                // Mobile Number
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 80,
-                                          child: TextFormField(
-                                            initialValue: _countryCode,
-                                            enabled: false,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            decoration: _inputDecoration(
-                                              'Code',
-                                              Icons.code,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: _buildField(
-                                            _mobileCtrl,
-                                            'Phone',
-                                            Icons.phone,
-                                            onChanged: _validateMobile,
-                                          ),
-                                        ),
-                                      ],
                                     ),
-                                    if (_mobileError != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 12,
-                                          top: 5,
-                                        ),
-                                        child: Text(
-                                          _mobileError!,
+                                ],
+                              ),
+                              const SizedBox(height: 15),
+
+                              // Mobile Number
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      SizedBox(
+                                        width: 80,
+                                        child: TextFormField(
+                                          initialValue: _countryCode,
+                                          enabled: false,
                                           style: const TextStyle(
-                                            color: Colors.red,
-                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          decoration: _inputDecoration(
+                                            'Code',
+                                            Icons.code,
                                           ),
                                         ),
                                       ),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-
-                                // Password
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildField(
-                                      _passCtrl,
-                                      'Password',
-                                      Icons.lock,
-                                      isPassword: true,
-                                      obscure: _hidePass,
-                                      toggle: () => setState(
-                                        () => _hidePass = !_hidePass,
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: _buildField(
+                                          _mobileCtrl,
+                                          'Phone',
+                                          Icons.phone,
+                                          onChanged: _validateMobile,
+                                        ),
                                       ),
-                                      onChanged: _validatePassword,
+                                    ],
+                                  ),
+                                  if (_mobileError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 12,
+                                        top: 5,
+                                      ),
+                                      child: Text(
+                                        _mobileError!,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                    if (_passwordError != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 12,
-                                          top: 5,
-                                        ),
-                                        child: Text(
-                                          _passwordError!,
-                                          style: const TextStyle(
-                                            color: Colors.red,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
+                                ],
+                              ),
+                              const SizedBox(height: 15),
 
-                                // Confirm Password
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildField(
-                                      _confirmCtrl,
-                                      'Confirm Password',
-                                      Icons.lock,
-                                      isPassword: true,
-                                      obscure: _hideConfirm,
-                                      toggle: () => setState(
-                                        () => _hideConfirm = !_hideConfirm,
+                              // Password
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildField(
+                                    _passCtrl,
+                                    'Password',
+                                    Icons.lock,
+                                    isPassword: true,
+                                    obscure: _hidePass,
+                                    toggle: () =>
+                                        setState(() => _hidePass = !_hidePass),
+                                    onChanged: _validatePassword,
+                                  ),
+                                  if (_passwordError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 12,
+                                        top: 5,
                                       ),
-                                      onChanged: _validateConfirm,
+                                      child: Text(
+                                        _passwordError!,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                    if (_confirmError != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 12,
-                                          top: 5,
-                                        ),
-                                        child: Text(
-                                          _confirmError!,
-                                          style: const TextStyle(
-                                            color: Colors.red,
-                                            fontSize: 12,
-                                          ),
+                                ],
+                              ),
+                              const SizedBox(height: 15),
+
+                              // Confirm Password
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildField(
+                                    _confirmCtrl,
+                                    'Confirm Password',
+                                    Icons.lock,
+                                    isPassword: true,
+                                    obscure: _hideConfirm,
+                                    toggle: () => setState(
+                                      () => _hideConfirm = !_hideConfirm,
+                                    ),
+                                    onChanged: _validateConfirm,
+                                  ),
+                                  if (_confirmError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 12,
+                                        top: 5,
+                                      ),
+                                      child: Text(
+                                        _confirmError!,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 12,
                                         ),
                                       ),
-                                  ],
-                                ),
-                                const SizedBox(height: 25),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 25),
 
-                                // Create Account Button
-                                ElevatedButton(
+                              // Create Account Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
                                   onPressed: _isLoading ? null : _register,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF2C3E50),
-                                    minimumSize: const Size(
-                                      double.infinity,
-                                      50,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(15),
                                     ),
                                   ),
                                   child: _isLoading
                                       ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
+                                          width: 22,
+                                          height: 22,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
                                             color: Colors.white,
@@ -643,50 +616,50 @@ class _RegisterPageState extends State<RegisterPage> {
                                         )
                                       : const Text(
                                           'Create Account',
-                                          style: TextStyle(fontSize: 16),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                 ),
-                                const SizedBox(height: 15),
+                              ),
+                              const SizedBox(height: 16),
 
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      "Already have account?",
-                                      style: TextStyle(color: Colors.grey[600]),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pushReplacementNamed(
-                                            context,
-                                            AppRouter.login,
-                                          ),
-                                      child: const Text(
-                                        'Sign In',
-                                        style: TextStyle(
-                                          color: Color(0xFF3498DB),
+                              // Sign In Link
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "Already have an account?",
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pushReplacementNamed(
+                                          context,
+                                          AppRouter.login,
                                         ),
+                                    child: const Text(
+                                      'Sign In',
+                                      style: TextStyle(
+                                        color: Color(0xFF3498DB),
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                if (_isLoading)
-                  Container(
-                    color: Colors.black54,
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-              ],
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -748,6 +721,7 @@ class _RegisterPageState extends State<RegisterPage> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.red, width: 2),
       ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 }
