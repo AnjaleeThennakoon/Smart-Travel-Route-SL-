@@ -6,10 +6,12 @@ import '../features/auth/profile_page.dart';
 import '../features/auth/explore_screen.dart';
 import '../features/auth/saved_page.dart';
 import '../features/auth/bucket_page.dart';
+import 'package:auboo_travel/screens/onboarding_screen.dart';
 
 class AppRouter {
   // Route names
-  static const String login = '/';
+  static const String onboarding = '/';
+  static const String login = '/login';
   static const String register = '/register';
   static const String home = '/home';
   static const String profile = '/profile';
@@ -20,6 +22,12 @@ class AppRouter {
   // Route generator
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case onboarding:
+        return MaterialPageRoute(
+          builder: (_) => const OnboardingScreen(),
+          settings: settings,
+        );
+
       case login:
         return MaterialPageRoute(
           builder: (_) => const LoginPage(),
@@ -63,25 +71,22 @@ class AppRouter {
         );
 
       default:
-        // If route not found, go to login page
+        
         return MaterialPageRoute(
-          builder: (_) => const LoginPage(),
+          builder: (_) => const OnboardingScreen(),
           settings: settings,
         );
     }
   }
 
-  // Helper method to navigate (optional)
   static void pushNamed(BuildContext context, String routeName) {
     Navigator.pushNamed(context, routeName);
   }
 
-  // Helper method to push replacement (optional)
   static void pushReplacementNamed(BuildContext context, String routeName) {
     Navigator.pushReplacementNamed(context, routeName);
   }
 
-  // Helper method to pop (go back)
   static void pop(BuildContext context) {
     Navigator.pop(context);
   }
