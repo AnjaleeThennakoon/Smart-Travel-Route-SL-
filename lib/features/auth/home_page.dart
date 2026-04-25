@@ -1,9 +1,10 @@
 import 'package:auboo_travel/services/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'profile_page.dart';
 import 'explore_screen.dart';
 import 'saved_page.dart';
-import 'bucket_page.dart'; // ⭐ BucketPage import කරන්න
+import 'bucket_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,7 +15,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
-
   String _selectedCategory = 'All';
   List<Map<String, dynamic>> _destinations = [];
   List<Map<String, dynamic>> _searchResults = [];
@@ -37,9 +37,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadDestinations() async {
     setState(() => _isLoading = true);
-    final destinations = await ApiService.getDestinationsByCategory(
-      _selectedCategory,
-    );
+    final destinations = await ApiService.getDestinationsByCategory(_selectedCategory);
     setState(() {
       _destinations = destinations;
       _isLoading = false;
@@ -67,11 +65,62 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // --- NAVIGATION PAGES ---
+  // --- EMERGENCY MODAL ---
+  void _showEmergencySheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(25),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
+            const SizedBox(height: 20),
+            Text("Emergency Help", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red)),
+            const SizedBox(height: 20),
+            _buildEmergencyTile(Icons.local_police, "Police (Sri Lanka)", "119", Colors.blue),
+            _buildEmergencyTile(Icons.medical_services, "Ambulance / Suwa Seriya", "1990", Colors.green),
+            _buildEmergencyTile(Icons.local_fire_department, "Fire & Rescue", "110", Colors.orange),
+            const Divider(),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: _buildLocationSearchBtn(Icons.local_hospital, "Near Hospital")),
+                const SizedBox(width: 10),
+                Expanded(child: _buildLocationSearchBtn(Icons.security, "Near Police")),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmergencyTile(IconData icon, String title, String number, Color color) {
+    return ListTile(
+      leading: CircleAvatar(backgroundColor: color.withOpacity(0.1), child: Icon(icon, color: color)),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(number, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+      trailing: IconButton(icon: const Icon(Icons.call, color: Colors.green), onPressed: () {}),
+    );
+  }
+
+  Widget _buildLocationSearchBtn(IconData icon, String label) {
+    return OutlinedButton.icon(
+      onPressed: () {}, 
+      icon: Icon(icon, size: 18, color: Colors.black87),
+      label: Text(label, style: const TextStyle(color: Colors.black87, fontSize: 12)),
+      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+    );
+  }
+
   final List<Widget> _pages = [
     const HomeBody(),
     const ExploreScreen(),
-    const BucketPage(), // ⭐ Bucket Page එක දාන්න (Coming Soon නෙවෙයි)
+    const BucketPage(),
     const SavedPage(),
     const ProfilePage(),
   ];
@@ -79,418 +128,249 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white,
       body: _currentIndex == 0 ? _buildHomeContent() : _pages[_currentIndex],
       bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
-  // --- HOME UI CONTENT ---
-
   Widget _buildHomeContent() {
     return SafeArea(
-      child: Column(
-        children: [
-          _buildHeader(),
-          _buildSearchBar(),
-          _buildCategories(),
-          _buildSectionTitle(),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+      child: SingleChildScrollView( 
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            _buildEmergencyBar(), // Emergency Bar
+            _buildSearchBar(),
+            _buildBookingShortcuts(),
+            _buildCategories(),
+            _buildSectionTitle(),
+            _isLoading
+                ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
                 : _searchController.text.isEmpty
-                ? _buildDestinationsList()
-                : _buildSearchResults(),
-          ),
-        ],
+                    ? _buildDestinationsList()
+                    : _buildSearchResults(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Welcome back,',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              Row(
+                children: [
+                  Text('Hey, ', style: GoogleFonts.poppins(fontSize: 18, color: Colors.black87)),
+                  Text('${_userName.toUpperCase()} 👋', 
+                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                _userName,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2C3E50),
-                ),
-              ),
+              const Text('Colombo, Sri Lanka', style: TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
-          const CircleAvatar(
-            radius: 25,
-            backgroundColor: Color(0xFF3498DB),
-            child: Icon(Icons.person, color: Colors.white, size: 28),
+          Row(
+            children: [
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_outlined, color: Colors.black87, size: 28),
+                    onPressed: () {},
+                  ),
+                  Positioned(
+                    right: 12, top: 12,
+                    child: Container(height: 10, width: 10, decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2))),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              const CircleAvatar(radius: 20, backgroundColor: Color(0xFF3498DB), child: Icon(Icons.person, color: Colors.white, size: 20)),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmergencyBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
+      child: GestureDetector(
+        onTap: _showEmergencySheet,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.red.shade100)),
+          child: Row(
+            children: [
+              const Icon(Icons.emergency_share, color: Colors.red, size: 24),
+              const SizedBox(width: 12),
+              Text("Emergency Help & Numbers", style: GoogleFonts.poppins(color: Colors.red.shade700, fontWeight: FontWeight.w600, fontSize: 13)),
+              const Spacer(),
+              const Icon(Icons.arrow_forward_ios, color: Colors.red, size: 14),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
+        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(15)),
         child: TextField(
           controller: _searchController,
           onChanged: _searchPlaces,
-          decoration: InputDecoration(
-            hintText: '🔍 Where do you want to go?',
-            hintStyle: TextStyle(color: Colors.grey[400]),
+          decoration: const InputDecoration(
+            hintText: 'Find things you interested in',
+            hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.all(16),
-            prefixIcon: const Icon(Icons.search, color: Color(0xFF3498DB)),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.grey),
-                    onPressed: () {
-                      _searchController.clear();
-                      _searchPlaces('');
-                      setState(() {});
-                    },
-                  )
-                : null,
+            prefixIcon: Icon(Icons.search, color: Colors.black54),
+            contentPadding: EdgeInsets.symmetric(vertical: 15),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBookingShortcuts() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Book Now", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 15),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildShortcutIcon(Icons.map_outlined, "Trip", () => setState(() => _currentIndex = 2)),
+              _buildShortcutIcon(Icons.flight, "Flight", () {}),
+              _buildShortcutIcon(Icons.hotel, "Hotel", () => setState(() => _currentIndex = 1)),
+              _buildShortcutIcon(Icons.train, "Train", () {}),
+              _buildShortcutIcon(Icons.directions_bus, "Bus", () {}),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShortcutIcon(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade200)), child: Icon(icon, size: 22, color: Colors.black87)),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+        ],
       ),
     );
   }
 
   Widget _buildCategories() {
     final categories = ApiService.getCategories();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: categories.map((category) {
-          final isSelected = _selectedCategory == category;
-          return GestureDetector(
-            onTap: () => _filterByCategory(category),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF2C3E50) : Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: isSelected
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          blurRadius: 5,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: Text(
-                category,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[700],
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10), child: Text("Categories", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold))),
+        SizedBox(
+          height: 45,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 25),
+            children: categories.map((category) {
+              final isSelected = _selectedCategory == category;
+              return GestureDetector(
+                onTap: () => _filterByCategory(category),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(color: isSelected ? const Color(0xFFDFFF00) : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
+                  child: Center(child: Text(category, style: TextStyle(color: Colors.black, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 13))),
                 ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildSectionTitle() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(25, 20, 25, 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Popular Destinations',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2C3E50),
-            ),
-          ),
-          TextButton(
-            onPressed: () {},
-            child: const Text(
-              'See all',
-              style: TextStyle(color: Color(0xFF3498DB)),
-            ),
-          ),
+          Text('Popular Trips', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+          TextButton(onPressed: () => setState(() => _currentIndex = 1), child: const Text('See all', style: TextStyle(color: Colors.grey))),
         ],
       ),
     );
   }
 
   Widget _buildDestinationsList() {
-    if (_destinations.isEmpty) {
-      return const Center(child: Text('No destinations found'));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: _destinations.length,
-      itemBuilder: (context, index) =>
-          _buildDestinationCard(_destinations[index]),
-    );
+    return ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.symmetric(horizontal: 25), itemCount: _destinations.length, itemBuilder: (context, index) => _buildDestinationCard(_destinations[index]));
   }
 
   Widget _buildSearchResults() {
-    if (_searchResults.isEmpty && _searchController.text.isNotEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'No results found for "${_searchController.text}"',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: _searchResults.length,
-      itemBuilder: (context, index) =>
-          _buildDestinationCard(_searchResults[index]),
-    );
+    return ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.symmetric(horizontal: 25), itemCount: _searchResults.length, itemBuilder: (context, index) => _buildDestinationCard(_searchResults[index]));
   }
 
   Widget _buildDestinationCard(Map<String, dynamic> destination) {
     final isSaved = ApiService.isDestinationSaved(destination['id']);
-
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      height: 180,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), image: DecorationImage(image: NetworkImage(destination['imageUrl']), fit: BoxFit.cover)),
+      child: Stack(
         children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-                child: Image.network(
-                  destination['imageUrl'],
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 200,
-                    color: Colors.grey[200],
-                    child: const Icon(
-                      Icons.broken_image,
-                      size: 50,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-              ),
-              // Save Button (Heart Icon)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      ApiService.toggleSaveDestination(destination);
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isSaved
-                              ? 'Removed from saved places'
-                              : 'Added to saved places',
-                        ),
-                        backgroundColor: isSaved
-                            ? Colors.orange
-                            : const Color(0xFF3498DB),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      isSaved ? Icons.favorite : Icons.favorite_border,
-                      color: isSaved ? Colors.red : Colors.grey,
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        destination['name'],
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.amber,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        destination['rating'].toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'LKR ${destination['price']} /person',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF3498DB),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Positioned.fill(child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.7)])))),
+          Positioned(top: 10, right: 10, child: CircleAvatar(backgroundColor: Colors.white, radius: 18, child: IconButton(icon: Icon(isSaved ? Icons.favorite : Icons.favorite_border, color: Colors.red, size: 18), onPressed: () => setState(() => ApiService.toggleSaveDestination(destination))))),
+          Positioned(bottom: 15, left: 15, right: 15, child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(destination['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)), Text('LKR ${destination['price']}/person', style: const TextStyle(color: Colors.white70, fontSize: 12))]), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)), child: Row(children: [const Icon(Icons.star, color: Colors.amber, size: 14), Text(" ${destination['rating']}", style: const TextStyle(color: Colors.white, fontSize: 12))]))])),
         ],
       ),
     );
   }
 
-  // --- CUSTOM BOTTOM NAVBAR ---
   Widget _buildBottomNavBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
+      height: 70,
+      decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade200))),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(Icons.home, 'Home', 0),
-          _buildNavItem(Icons.explore, 'Explore', 1),
-          _buildNavItem(Icons.favorite_border, 'Bucket', 2),
-          _buildNavItem(Icons.bookmark_border, 'Saved', 3),
-          _buildNavItem(Icons.person_outline, 'Profile', 4),
+          _buildNavItem(Icons.home_filled, 0),
+          _buildNavItem(Icons.explore_outlined, 1),
+          _buildNavItem(Icons.favorite_outline, 2),
+          _buildNavItem(Icons.bookmark_outline, 3),
+          _buildNavItem(Icons.person_outline, 4),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
+  Widget _buildNavItem(IconData icon, int index) {
     final isSelected = _currentIndex == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? const Color(0xFF3498DB) : Colors.grey,
-            size: 24,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: isSelected ? const Color(0xFF3498DB) : Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
+    return GestureDetector(onTap: () => setState(() => _currentIndex = index), child: Icon(icon, color: isSelected ? Colors.black : Colors.grey, size: 28));
   }
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  void dispose() { _searchController.dispose(); super.dispose(); }
 }
 
-// Home Body Placeholder
 class HomeBody extends StatelessWidget {
   const HomeBody({super.key});
-
   @override
-  Widget build(BuildContext context) {
-    return Container();
-  }
+  Widget build(BuildContext context) { return const SizedBox.shrink(); }
 }

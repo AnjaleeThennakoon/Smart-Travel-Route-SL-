@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'routers/app_router.dart';
+import 'screens/onboarding_screen.dart'; 
 
 void main() {
   runApp(const MyApp());
@@ -24,7 +25,10 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: Colors.white,
       ),
-      initialRoute: AppRouter.login,
+      
+      
+      initialRoute: '/onboarding', 
+      
       onGenerateRoute: AppRouter.onGenerateRoute,
     );
   }
