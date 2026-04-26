@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'bucket_page.dart';
+import 'payment_details_page.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -481,18 +482,30 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _planTripWithHotel(hotel);
-                    },
-                    icon: const Icon(Icons.airplane_ticket),
-                    label: const Text('Book Now'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D9C7C),
-                    ),
-                  ),
-                ),
+  child: ElevatedButton.icon(
+    onPressed: () {
+      // 1. දැනට විවෘතව ඇති Modal Bottom Sheet එක වසන්න
+      Navigator.pop(context); 
+
+      // 2. PaymentDetailsPage වෙත දත්ත සමඟ ගමන් කරන්න
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentDetailsPage(
+            // හෝටලයේ මිල String එකක් නම් එය double එකකට convert කිරීම මෙහිදී වැදගත් වේ
+            amount: double.tryParse(hotel['price'].toString()) ?? 0.0, 
+            hotelName: hotel['name'],
+          ),
+        ),
+      );
+    },
+    icon: const Icon(Icons.airplane_ticket, color: Colors.white),
+    label: const Text('Book Now', style: TextStyle(color: Colors.white)),
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFF2D9C7C),
+    ),
+  ),
+),
               ],
             ),
           ],
