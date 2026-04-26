@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 import '../../routers/app_router.dart';
 import '../auth/my_trips_page.dart';
 import 'wishlist_page.dart';
+import 'payment_details_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -10,18 +12,17 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB), // Light grey background
+      backgroundColor: const Color(0xFFF8F9FB),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Header Section with Stack
+            // Header Section with Overlapping Stats Card
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
                 _buildHeaderBackground(context),
                 _buildStatsCard(context),
-                // The Back Arrow Button
                 Positioned(
                   top: 50,
                   left: 20,
@@ -35,58 +36,90 @@ class ProfilePage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 60), // Space for the overlapping card
-            _buildMenuItem(
-  Icons.location_on_outlined, 
-  "My Trips", 
-  Colors.blue,
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const MyTripsPage()),
-    );
-  },
-),
-_buildMenuItem(
-  Icons.favorite_border, 
-  "Wishlist", 
-  Colors.red,
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const WishlistPage()),
-    );
-  },
-),
+            const SizedBox(height: 60),
+
+            // --- Menu Items Section ---
             
-            // Menu Items
-            _buildMenuItem(Icons.credit_card, "Payment Methods", Colors.green),
-            _buildMenuItem(Icons.notifications_none, "Notifications", Colors.purple),
-            _buildMenuItem(Icons.settings_outlined, "Settings", Colors.grey),
-            // Inside ProfilePage column:
-            
-            // Logout Button
             _buildMenuItem(
-              Icons.logout, 
-              "Logout", 
-              Colors.redAccent, 
-              isLogout: true, 
-              onTap: () => _showLogoutDialog(context)
+              Icons.location_on_outlined,
+              "My Trips",
+              Colors.blue,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MyTripsPage()),
+                );
+              },
             ),
+
+           
+
+            _buildMenuItem(
+              Icons.favorite_border,
+              "Wishlist",
+              Colors.red,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const WishlistPage()),
+                );
+              },
+            ),
+
+            _buildMenuItem(
+              Icons.credit_card,
+              "Payment Methods",
+              Colors.green,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PaymentDetailsPage(
+                      amount: 0.0,
+                      hotelName: "No Booking Selected",
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            _buildMenuItem(
+              Icons.notifications_none,
+              "Notifications",
+              Colors.purple,
+              onTap: () => _showFeatureNote(context, "Notifications"),
+            ),
+
+            _buildMenuItem(
+              Icons.settings_outlined,
+              "Settings",
+              Colors.grey,
+              onTap: () => _showFeatureNote(context, "Settings"),
+            ),
+
+            _buildMenuItem(
+              Icons.logout,
+              "Logout",
+              Colors.redAccent,
+              isLogout: true,
+              onTap: () => _showLogoutDialog(context),
+            ),
+            const SizedBox(height: 30),
           ],
         ),
       ),
     );
   }
 
-  // 1. The Purple Gradient Header
+  // --- Helper Widgets ---
+
   Widget _buildHeaderBackground(BuildContext context) {
     return Container(
       height: 280,
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)], // Blue to Purple
+          colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -101,11 +134,15 @@ _buildMenuItem(
           ),
           const SizedBox(height: 12),
           Text(
-            ApiService.getUserName(), // Dynamic name
-            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            ApiService.getUserName().toUpperCase(),
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const Text(
-            "Traveller", // You can make this dynamic too
+            "International Traveller",
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
@@ -113,7 +150,6 @@ _buildMenuItem(
     );
   }
 
-  // 2. The Overlapping Stats Card
   Widget _buildStatsCard(BuildContext context) {
     return Positioned(
       bottom: -40,
@@ -146,14 +182,23 @@ _buildMenuItem(
   Widget _buildStatItem(String value, String label) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        Text(label, style: TextStyle(color: Colors.grey, fontSize: 13)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
       ],
     );
   }
 
-  // 3. The Menu List Item
-  Widget _buildMenuItem(IconData icon, String title, Color color, {bool isLogout = false, VoidCallback? onTap}) {
+  Widget _buildMenuItem(
+    IconData icon,
+    String title,
+    Color color, {
+    String? subtitle,
+    bool isLogout = false,
+    VoidCallback? onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       decoration: BoxDecoration(
@@ -170,26 +215,37 @@ _buildMenuItem(
           child: Icon(icon, color: color, size: 20),
         ),
         title: Text(
-          title, 
-          style: TextStyle(
-            fontSize: 15, 
-            fontWeight: FontWeight.w500,
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
             color: isLogout ? Colors.redAccent : Colors.black87,
-          )
+          ),
         ),
+        subtitle: subtitle != null 
+          ? Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)) 
+          : null,
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: onTap ?? () {
-          // General navigation can go here
-        },
+        onTap: onTap,
       ),
     );
   }
 
-  // Logout Logic
+  void _showFeatureNote(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature feature ensures fair pricing and safety for tourists!'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF2D9C7C),
+      ),
+    );
+  }
+
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Logout'),
         content: const Text('Are you sure you want to exit?'),
         actions: [
@@ -201,12 +257,17 @@ _buildMenuItem(
             onPressed: () {
               ApiService.logout();
               Navigator.pushNamedAndRemoveUntil(
-                context, 
-                AppRouter.login, 
+                context,
+                AppRouter.login,
                 (route) => false,
               );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
         ],
