@@ -55,7 +55,7 @@ class TripPlan {
 
 // ==================== BUCKET SERVICE ====================
 class BucketService {
-  static List<TripPlan> _trips = [];
+  static final List<TripPlan> _trips = [];
   static List<TripPlan> getTrips() => _trips;
   static void addTrip(TripPlan trip) => _trips.add(trip);
   static void deleteTrip(String id) => _trips.removeWhere((t) => t.id == id);
@@ -443,7 +443,7 @@ class _BucketPageState extends State<BucketPage> {
   List<Map<String, dynamic>> _availablePlaces = [];
   List<Map<String, dynamic>> _selectedPlaces = [];
   List<Map<String, dynamic>> _hotels = [];
-  List<Map<String, dynamic>> _nearbyPlaces = [];
+  final List<Map<String, dynamic>> _nearbyPlaces = [];
 
   // Map
   List<Map<String, dynamic>> _mapMarkers = [];
@@ -584,7 +584,7 @@ class _BucketPageState extends State<BucketPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('🎉 Trip saved to ${_selectedCountry}!'),
+        content: Text('🎉 Trip saved to $_selectedCountry!'),
         backgroundColor: const Color(0xFF2D9C7C),
       ),
     );
@@ -617,18 +617,16 @@ class _BucketPageState extends State<BucketPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF2C3E50)),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildTabButton('My Trips', 0, Icons.airplane_ticket),
                 _buildTabButton('Trip Wizard', 1, Icons.auto_awesome),
+                _buildTabButton('My Trips', 0, Icons.airplane_ticket),
               ],
             ),
           ),

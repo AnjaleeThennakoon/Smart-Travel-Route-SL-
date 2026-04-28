@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'routers/app_router.dart';
-import 'screens/onboarding_screen.dart'; 
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://zwcawavkavpcnfhcjjbq.supabase.co',
+    anonKey: 'sb_publishable_-P1NGNIkGT6UtxcdEj93Ug_wC5qmBdG',
+  );
+
+  checkSupabaseInit();
+
   runApp(const MyApp());
+}
+
+void checkSupabaseInit() {
+  final client = Supabase.instance.client;
+  print('✅ Supabase client initialized successfully');
+  print('Auth: ${client.auth}');
 }
 
 class MyApp extends StatelessWidget {
@@ -25,10 +40,9 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: Colors.white,
       ),
-      
-      
-      initialRoute: '/onboarding', 
-      
+
+      initialRoute: '/onboarding',
+
       onGenerateRoute: AppRouter.onGenerateRoute,
     );
   }
