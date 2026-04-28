@@ -41,7 +41,7 @@ class _SupabaseTodosPageState extends State<SupabaseTodosPage> {
 
           return ListView.separated(
             itemCount: todos.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final todo = todos[index] as Map<String, dynamic>;
               return ListTile(

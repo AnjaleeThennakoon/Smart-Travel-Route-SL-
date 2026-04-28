@@ -1083,7 +1083,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                               height: 160,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, __) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 height: 160,
                                 color: const Color(0xFF2D9C7C).withOpacity(0.1),
                                 child: Center(

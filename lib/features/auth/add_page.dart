@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
+import '../../services/api_service.dart';
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const String _orsApiKey =
@@ -200,6 +202,25 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     _sheetOpen ? _sheetAnim.forward() : _sheetAnim.reverse();
   }
 
+  void _openShortestPathPage() {
+    if (_addedPlaces.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add at least 2 places to show a path.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ShortestPathPage(places: List<Place>.from(_addedPlaces)),
+      ),
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -213,7 +234,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
             options: MapOptions(
               initialCenter: _center,
               initialZoom: 13,
-              onTap: (_, __) {
+              onTap: (_, _) {
                 _searchFocus.unfocus();
                 setState(() => _suggestions = []);
               },
@@ -315,6 +336,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                     places: _addedPlaces,
                     onRemove: _removePlace,
                     onTap: (p) => _mapController.move(p.latLng, 15),
+                    onShowPath: _openShortestPathPage,
                   ),
                 ),
               ],
@@ -536,7 +558,7 @@ class _FilterChips extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final f = filters[i];
           final isActive = active.contains(f);
@@ -573,17 +595,19 @@ class _AddedPlacesSheet extends StatelessWidget {
   final List<Place> places;
   final ValueChanged<int> onRemove;
   final ValueChanged<Place> onTap;
+  final VoidCallback onShowPath;
 
   const _AddedPlacesSheet({
     required this.places,
     required this.onRemove,
     required this.onTap,
+    required this.onShowPath,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(maxHeight: 280),
+      constraints: const BoxConstraints(maxHeight: 340),
       decoration: const BoxDecoration(
         color: Color(0xFF1565C0),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -651,7 +675,7 @@ class _AddedPlacesSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 shrinkWrap: true,
                 itemCount: places.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (_, i) {
                   final p = places[i];
                   return GestureDetector(
@@ -728,6 +752,341 @@ class _AddedPlacesSheet extends StatelessWidget {
                 },
               ),
             ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: places.length >= 2 ? onShowPath : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF1565C0),
+                  disabledBackgroundColor: Colors.white24,
+                  disabledForegroundColor: Colors.white60,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.route_rounded),
+                label: const Text(
+                  'Show Path',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ShortestPathPage extends StatefulWidget {
+  final List<Place> places;
+
+  const ShortestPathPage({super.key, required this.places});
+
+  @override
+  State<ShortestPathPage> createState() => _ShortestPathPageState();
+}
+
+class _ShortestPathPageState extends State<ShortestPathPage> {
+  final MapController _mapController = MapController();
+  List<Place> _orderedPlaces = [];
+  List<LatLng> _routePoints = [];
+  bool _isLoading = true;
+  String? _error;
+  String _distance = '';
+  String _duration = '';
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPath();
+  }
+
+  Future<void> _loadPath() async {
+    final ordered = _nearestNeighborOrder(widget.places);
+    setState(() {
+      _orderedPlaces = ordered;
+      _routePoints = ordered.map((p) => p.latLng).toList();
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final uri = Uri.parse(
+        'https://api.openrouteservice.org/v2/directions/driving-car/geojson',
+      );
+      final coordinates = ordered
+          .map((p) => [p.latLng.longitude, p.latLng.latitude])
+          .toList();
+      final res = await http.post(
+        uri,
+        headers: {
+          'Authorization': _orsApiKey,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'coordinates': coordinates}),
+      );
+
+      if (res.statusCode != 200) {
+        throw Exception('Could not fetch route (${res.statusCode}).');
+      }
+
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final features = body['features'] as List<dynamic>;
+      if (features.isEmpty) {
+        throw Exception('No route returned for selected places.');
+      }
+
+      final feature = features.first as Map<String, dynamic>;
+      final geometry = feature['geometry'] as Map<String, dynamic>;
+      final rawCoords = geometry['coordinates'] as List<dynamic>;
+      final summary =
+          (feature['properties'] as Map<String, dynamic>)['summary']
+              as Map<String, dynamic>;
+
+      final points = rawCoords.map((item) {
+        final pair = item as List<dynamic>;
+        return LatLng((pair[1] as num).toDouble(), (pair[0] as num).toDouble());
+      }).toList();
+
+      setState(() {
+        _routePoints = points;
+        _distance = _formatDistance(summary['distance']);
+        _duration = _formatDuration(summary['duration']);
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _routePoints.isEmpty) return;
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: LatLngBounds.fromPoints(_routePoints),
+            padding: const EdgeInsets.all(32),
+          ),
+        );
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  List<Place> _nearestNeighborOrder(List<Place> source) {
+    if (source.length <= 2) return List<Place>.from(source);
+    final remaining = List<Place>.from(source);
+    final ordered = <Place>[remaining.removeAt(0)];
+    while (remaining.isNotEmpty) {
+      final current = ordered.last;
+      remaining.sort((a, b) {
+        final da = _distanceKm(current.latLng, a.latLng);
+        final db = _distanceKm(current.latLng, b.latLng);
+        return da.compareTo(db);
+      });
+      ordered.add(remaining.removeAt(0));
+    }
+    return ordered;
+  }
+
+  double _distanceKm(LatLng a, LatLng b) {
+    const r = 6371.0;
+    final dLat = _degToRad(b.latitude - a.latitude);
+    final dLng = _degToRad(b.longitude - a.longitude);
+    final sinDLat = math.sin(dLat / 2);
+    final sinDLng = math.sin(dLng / 2);
+    final aa =
+        sinDLat * sinDLat +
+        math.cos(_degToRad(a.latitude)) *
+            math.cos(_degToRad(b.latitude)) *
+            sinDLng *
+            sinDLng;
+    final c = 2 * math.atan2(math.sqrt(aa), math.sqrt(1 - aa));
+    return r * c;
+  }
+
+  double _degToRad(double d) => d * 3.141592653589793 / 180;
+
+  String _formatDistance(dynamic value) {
+    final meters = (value as num?)?.toDouble() ?? 0;
+    if (meters >= 1000) return '${(meters / 1000).toStringAsFixed(1)} km';
+    return '${meters.toStringAsFixed(0)} m';
+  }
+
+  String _formatDuration(dynamic value) {
+    final seconds = (value as num?)?.toDouble() ?? 0;
+    final minutes = (seconds / 60).round();
+    if (minutes >= 60) {
+      final h = minutes ~/ 60;
+      final m = minutes % 60;
+      return '${h}h ${m}m';
+    }
+    return '$minutes min';
+  }
+
+  Future<void> _saveRouteToMyTrips() async {
+    if (_orderedPlaces.length < 2 || _isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      final now = DateTime.now();
+      final title =
+          '${_orderedPlaces.first.name} to ${_orderedPlaces.last.name} Route';
+      final location = _orderedPlaces.map((p) => p.name).join(' → ');
+      final summary = _distance.isNotEmpty || _duration.isNotEmpty
+          ? '$_distance • $_duration'
+          : '${_orderedPlaces.length} stops';
+
+      ApiService.addSavedTrip({
+        'id': now.microsecondsSinceEpoch.toString(),
+        'title': title,
+        'date': '${now.day}/${now.month}/${now.year}',
+        'location': location,
+        'summary': summary,
+        'stops': _orderedPlaces.map((p) => p.name).toList(),
+        'distance': _distance,
+        'duration': _duration,
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Route saved to My Trips.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Shortest Path')),
+      body: Column(
+        children: [
+          Expanded(
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _orderedPlaces.isNotEmpty
+                    ? _orderedPlaces.first.latLng
+                    : const LatLng(6.9271, 79.8612),
+                initialZoom: 11,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.placefinder',
+                ),
+                if (_routePoints.length >= 2)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: _routePoints,
+                        strokeWidth: 5,
+                        color: const Color(0xFF1565C0),
+                      ),
+                    ],
+                  ),
+                MarkerLayer(
+                  markers: _orderedPlaces.asMap().entries.map((entry) {
+                    return Marker(
+                      point: entry.value.latLng,
+                      width: 36,
+                      height: 36,
+                      child: CircleAvatar(
+                        backgroundColor: const Color(0xFF1565C0),
+                        child: Text(
+                          '${entry.key + 1}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+            ),
+            child: _isLoading
+                ? const Row(
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('Calculating shortest path...'),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_error != null)
+                        Text(_error!, style: const TextStyle(color: Colors.red))
+                      else
+                        Text(
+                          'Distance: $_distance   •   Duration: $_duration',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _orderedPlaces.map((p) => p.name).join('  →  '),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.black54),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading || _error != null || _isSaving
+                              ? null
+                              : _saveRouteToMyTrips,
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.save_rounded),
+                          label: Text(_isSaving ? 'Saving...' : 'Save Route'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1565C0),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ],
       ),
     );

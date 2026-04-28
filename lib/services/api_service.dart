@@ -270,6 +270,21 @@ class ApiService {
     }
   }
 
+  // Saved trip plans for Profile -> My Trips
+  static final List<Map<String, dynamic>> _savedTrips = [];
+
+  static List<Map<String, dynamic>> getSavedTrips() => List.unmodifiable(
+    _savedTrips,
+  );
+
+  static void addSavedTrip(Map<String, dynamic> trip) {
+    _savedTrips.insert(0, trip);
+  }
+
+  static void deleteSavedTrip(String id) {
+    _savedTrips.removeWhere((trip) => trip['id'] == id);
+  }
+
   static final List<Map<String, dynamic>> _mockDestinations = [
     {
       'id': '1',

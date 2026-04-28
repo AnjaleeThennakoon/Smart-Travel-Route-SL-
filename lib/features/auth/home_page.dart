@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'profile_page.dart';
 import 'explore_screen.dart';
 import 'add_page.dart';
-import 'saved_page.dart';
 import 'bucket_page.dart';
 import 'trip_tracker_page.dart';
 

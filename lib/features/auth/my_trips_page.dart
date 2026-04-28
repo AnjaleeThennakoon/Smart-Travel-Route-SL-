@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 
-class MyTripsPage extends StatelessWidget {
+class MyTripsPage extends StatefulWidget {
   const MyTripsPage({super.key});
 
   @override
+  State<MyTripsPage> createState() => _MyTripsPageState();
+}
+
+class _MyTripsPageState extends State<MyTripsPage> {
+  List<Map<String, dynamic>> _myTrips = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrips();
+  }
+
+  void _loadTrips() {
+    setState(() {
+      _myTrips = ApiService.getSavedTrips();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final List<Map<String, String>> myTrips = [
-      {
-        "title": "Ella Adventure",
-        "date": "12 May - 15 May",
-        "location": "Badulla, Sri Lanka",
-        "image": "https://picsum.photos/id/1015/400/400",
-      },
-      {
-        "title": "Galle Fort Walk",
-        "date": "20 June - 22 June",
-        "location": "Galle, Sri Lanka",
-        "image": "https://images.unsplash.com/photo-1544085311-11a028465b03",
-      },
-    ];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
@@ -35,105 +41,220 @@ class MyTripsPage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: myTrips.length,
-        itemBuilder: (context, index) {
-          final trip = myTrips[index];
-          return _buildTripCard(trip);
-        },
-      ),
+      body: _myTrips.isEmpty
+          ? const Center(
+              child: Text(
+                'No trips saved yet.\nSave a route from Show Path screen.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: _myTrips.length,
+              itemBuilder: (context, index) {
+                final trip = _myTrips[index];
+                return _buildTripCard(trip);
+              },
+            ),
     );
   }
 
-  Widget _buildTripCard(Map<String, String> trip) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Trip Image
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(
-              left: Radius.circular(15),
+  Widget _buildTripCard(Map<String, dynamic> trip) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(15),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => SavedTripDetailsPage(trip: trip)),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
             ),
-            child: Image.network(
-              trip['image']!,
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
               width: 100,
               height: 100,
-              fit: BoxFit.cover,
+              decoration: const BoxDecoration(
+                borderRadius:
+                    BorderRadius.horizontal(left: Radius.circular(15)),
+                color: Color(0xFFEAF2FF),
+              ),
+              child: const Icon(
+                Icons.alt_route_rounded,
+                color: Color(0xFF1565C0),
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    (trip['title'] ?? '') as String,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    (trip['date'] ?? '') as String,
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          (trip['location'] ?? '') as String,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                onPressed: () {
+                  ApiService.deleteSavedTrip((trip['id'] ?? '') as String);
+                  _loadTrips();
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.broken_image, color: Colors.grey),
-                );
-              },
+class SavedTripDetailsPage extends StatelessWidget {
+  final Map<String, dynamic> trip;
+
+  const SavedTripDetailsPage({super.key, required this.trip});
+
+  List<String> get _stops {
+    final rawStops = trip['stops'];
+    if (rawStops is List) {
+      return rawStops.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final distance = (trip['distance'] ?? '').toString();
+    final duration = (trip['duration'] ?? '').toString();
+    final routeText = _stops.isNotEmpty
+        ? _stops.join('  →  ')
+        : (trip['location'] ?? '').toString();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FB),
+      appBar: AppBar(
+        title: const Text('Trip Details'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.alt_route_rounded,
+                  color: Color(0xFF1565C0),
+                  size: 46,
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 15),
-
-          Expanded(
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  trip['title']!,
+                  (trip['title'] ?? '').toString(),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  trip['date']!,
-                  style: const TextStyle(
-                    color: Colors.blue,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 17,
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 14, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Expanded(
+                Text(
+                  'Distance: $distance   •   Duration: $duration',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  routeText,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 14),
+                if (_stops.isNotEmpty) ...[
+                  const Text(
+                    'Stops',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._stops.asMap().entries.map(
+                    (entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
                       child: Text(
-                        trip['location']!,
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        '${entry.key + 1}. ${entry.value}',
+                        style: const TextStyle(color: Colors.black87),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
-          ),
-
-          // Right Arrow Icon
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10),
-            child: Icon(Icons.chevron_right, color: Colors.grey),
           ),
         ],
       ),
