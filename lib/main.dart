@@ -1,8 +1,16 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'routers/app_router.dart';
-import 'screens/onboarding_screen.dart'; 
+import 'screens/onboarding_screen.dart';
+import 'services/image_api_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Test API connection
+  final isApiWorking = await ImageApiService.testApiConnection();
+  print('🔧 API Status: ${isApiWorking ? "WORKING ✅" : "NOT WORKING ❌"}');
+
   runApp(const MyApp());
 }
 
@@ -25,10 +33,7 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         scaffoldBackgroundColor: Colors.white,
       ),
-      
-      
-      initialRoute: '/onboarding', 
-      
+      initialRoute: '/onboarding',
       onGenerateRoute: AppRouter.onGenerateRoute,
     );
   }

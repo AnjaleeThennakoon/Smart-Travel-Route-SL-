@@ -1,5 +1,6 @@
+import 'package:auboo_travel/features/auth/bucket_page.dart';
 import 'package:flutter/material.dart';
-import '../../../services/api_service.dart';
+import '../../services/api_service.dart';
 import '../../routers/app_router.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -11,7 +12,7 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // Controllers
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -26,6 +27,9 @@ class _RegisterPageState extends State<RegisterPage> {
   String _countryCode = '+94';
   List<String> _countries = [];
 
+  // REMOVE THIS LINE - IT'S CAUSING THE ERROR
+  // get ApiService => null;
+
   @override
   void initState() {
     super.initState();
@@ -33,11 +37,11 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _loadCountries() {
-    // API එකෙන් රටවල් ලැයිස්තුව ලබා ගැනීම
+    // Use ApiService directly, not through a getter
     _countries = ApiService.getCountries();
+    setState(() {});
   }
 
-  // මෙහිදී validation logic එක FormField තුළටම ගෙන ගොස් ඇත
   Future<void> _handleRegister() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedCountry == null) {
@@ -76,9 +80,9 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   @override
@@ -94,8 +98,10 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
           // Dark Overlay
-          Positioned.fill(child: Container(color: Colors.black.withOpacity(0.5))),
-          
+          Positioned.fill(
+            child: Container(color: Colors.black.withOpacity(0.5)),
+          ),
+
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -132,7 +138,10 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         Text(
           'START YOUR JOURNEY',
-          style: TextStyle(color: Colors.white.withOpacity(0.8), letterSpacing: 1.2),
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            letterSpacing: 1.2,
+          ),
         ),
       ],
     );
@@ -149,20 +158,25 @@ class _RegisterPageState extends State<RegisterPage> {
         children: [
           const Text(
             'Create Account',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50)),
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2C3E50),
+            ),
           ),
           const SizedBox(height: 20),
-          
+
           // Name Field
           _buildTextField(
             controller: _nameCtrl,
             label: 'Full Name',
             icon: Icons.person_outline,
-            validator: (v) => v!.length < 3 ? 'Enter at least 3 characters' : null,
+            validator: (v) =>
+                v!.length < 3 ? 'Enter at least 3 characters' : null,
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Email Field
           _buildTextField(
             controller: _emailCtrl,
@@ -171,20 +185,22 @@ class _RegisterPageState extends State<RegisterPage> {
             keyboardType: TextInputType.emailAddress,
             validator: (v) => !v!.contains('@') ? 'Enter a valid email' : null,
           ),
-          
+
           const SizedBox(height: 16),
 
           // Country Dropdown
           DropdownButtonFormField<String>(
             value: _selectedCountry,
             decoration: _inputDecoration('Country', Icons.public),
-            items: _countries.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+            items: _countries
+                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                .toList(),
             onChanged: (val) => setState(() {
               _selectedCountry = val;
               _countryCode = ApiService.getCountryCode(val!);
             }),
           ),
-          
+
           const SizedBox(height: 16),
 
           // Mobile Number
@@ -199,7 +215,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   border: Border.all(color: Colors.grey[300]!),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(_countryCode, style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(
+                  _countryCode,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -213,7 +232,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
 
           // Password
@@ -228,7 +247,7 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             validator: (v) => v!.length < 6 ? 'Minimum 6 characters' : null,
           ),
-          
+
           const SizedBox(height: 16),
 
           // Confirm Password
@@ -238,10 +257,13 @@ class _RegisterPageState extends State<RegisterPage> {
             icon: Icons.lock_reset,
             obscure: _hideConfirm,
             suffixIcon: IconButton(
-              icon: Icon(_hideConfirm ? Icons.visibility_off : Icons.visibility),
+              icon: Icon(
+                _hideConfirm ? Icons.visibility_off : Icons.visibility,
+              ),
               onPressed: () => setState(() => _hideConfirm = !_hideConfirm),
             ),
-            validator: (v) => v != _passCtrl.text ? 'Passwords do not match' : null,
+            validator: (v) =>
+                v != _passCtrl.text ? 'Passwords do not match' : null,
           ),
 
           const SizedBox(height: 25),
@@ -254,14 +276,22 @@ class _RegisterPageState extends State<RegisterPage> {
               onPressed: _isLoading ? null : _handleRegister,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2C3E50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
               ),
-              child: _isLoading 
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('CREATE ACCOUNT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      'CREATE ACCOUNT',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
-          
+
           _buildSignInLink(),
         ],
       ),
@@ -282,7 +312,10 @@ class _RegisterPageState extends State<RegisterPage> {
       obscureText: obscure,
       keyboardType: keyboardType,
       validator: validator,
-      decoration: _inputDecoration(label, icon).copyWith(suffixIcon: suffixIcon),
+      decoration: _inputDecoration(
+        label,
+        icon,
+      ).copyWith(suffixIcon: suffixIcon),
     );
   }
 
@@ -301,8 +334,15 @@ class _RegisterPageState extends State<RegisterPage> {
       children: [
         const Text("Already have an account?"),
         TextButton(
-          onPressed: () => Navigator.pushReplacementNamed(context, AppRouter.login),
-          child: const Text('Sign In', style: TextStyle(color: Color(0xFF3498DB), fontWeight: FontWeight.bold)),
+          onPressed: () =>
+              Navigator.pushReplacementNamed(context, AppRouter.login),
+          child: const Text(
+            'Sign In',
+            style: TextStyle(
+              color: Color(0xFF3498DB),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
       ],
     );
@@ -314,7 +354,12 @@ class _RegisterPageState extends State<RegisterPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('Oops!'),
         content: Text(message),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }

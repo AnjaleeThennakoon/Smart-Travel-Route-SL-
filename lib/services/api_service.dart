@@ -66,7 +66,6 @@ class ApiService {
         'created_at': DateTime.now().toIso8601String(),
       };
 
-      // Store current user
       _currentUser = userData;
 
       return {

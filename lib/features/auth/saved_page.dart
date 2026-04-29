@@ -1,3 +1,4 @@
+import 'package:auboo_travel/features/auth/bucket_page.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import 'home_page.dart'; // ⭐ HomePage import කරන්න
@@ -16,6 +17,8 @@ class _SavedPageState extends State<SavedPage> {
   // Edit mode variables
   bool _isEditMode = false;
   final List<String> _selectedIds = [];
+
+  get ApiService => null;
 
   @override
   void initState() {

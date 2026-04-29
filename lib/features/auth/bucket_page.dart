@@ -2,328 +2,60 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import '../../services/api_service.dart'; // ✅ Use your existing ApiService
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
 
-// ==================== TRIP MODEL ====================
-class TripPlan {
+// ==================== MODELS ====================
+class Place {
   final String id;
-  final String destination;
-  final String country;
-  final String countryFlag;
-  final String image;
-  final DateTime startDate;
-  final DateTime endDate;
-  final int travelers;
-  final double budget;
-  final String accommodation;
-  final String transport;
-  final List<String> activities;
-  final String notes;
-  final String status;
-  final String hotelName;
-  final String hotelPhone;
-  final String hotelAddress;
-  final List<Map<String, dynamic>>? selectedPlaces;
-  final double? spentAmount;
-
-  TripPlan({
+  final String name;
+  final String description;
+  final double rating;
+  final double lat;
+  final double lng;
+  final String imageUrl;
+  final String category;
+  Place({
     required this.id,
-    required this.destination,
-    required this.country,
-    required this.countryFlag,
-    required this.image,
-    required this.startDate,
-    required this.endDate,
-    required this.travelers,
-    required this.budget,
-    required this.accommodation,
-    required this.transport,
-    required this.activities,
-    required this.notes,
-    required this.status,
-    required this.hotelName,
-    required this.hotelPhone,
-    required this.hotelAddress,
-    this.selectedPlaces,
-    this.spentAmount,
+    required this.name,
+    required this.description,
+    required this.rating,
+    required this.lat,
+    required this.lng,
+    this.imageUrl = '',
+    this.category = '',
   });
-
-  int get duration => endDate.difference(startDate).inDays;
-  double get budgetPerDay => budget / duration;
-  double get remainingBudget => budget - (spentAmount ?? 0);
 }
 
-// ==================== BUCKET SERVICE ====================
-class BucketService {
-  static List<TripPlan> _trips = [];
-  static List<TripPlan> getTrips() => _trips;
-  static void addTrip(TripPlan trip) => _trips.add(trip);
-  static void deleteTrip(String id) => _trips.removeWhere((t) => t.id == id);
+class Driver {
+  final String name;
+  final String phone;
+  final double rating;
+  final String vehicleType;
+  final double pricePerDay;
+  Driver({
+    required this.name,
+    required this.phone,
+    required this.rating,
+    required this.vehicleType,
+    required this.pricePerDay,
+  });
 }
 
-// ==================== COUNTRY DATA ====================
-class CountryHelper {
-  static List<Map<String, dynamic>> getCountries() {
-    return [
-      {
-        'name': 'Sri Lanka',
-        'emoji': '🇱🇰',
-        'code': 'LK',
-        'capital': 'Colombo',
-        'currency': 'LKR',
-        'lat': 7.8731,
-        'lng': 80.7718,
-      },
-      {
-        'name': 'India',
-        'emoji': '🇮🇳',
-        'code': 'IN',
-        'capital': 'New Delhi',
-        'currency': 'INR',
-        'lat': 20.5937,
-        'lng': 78.9629,
-      },
-      {
-        'name': 'Thailand',
-        'emoji': '🇹🇭',
-        'code': 'TH',
-        'capital': 'Bangkok',
-        'currency': 'THB',
-        'lat': 15.8700,
-        'lng': 100.9925,
-      },
-      {
-        'name': 'Maldives',
-        'emoji': '🇲🇻',
-        'code': 'MV',
-        'capital': 'Malé',
-        'currency': 'MVR',
-        'lat': 3.2028,
-        'lng': 73.2207,
-      },
-      {
-        'name': 'Japan',
-        'emoji': '🇯🇵',
-        'code': 'JP',
-        'capital': 'Tokyo',
-        'currency': 'JPY',
-        'lat': 36.2048,
-        'lng': 138.2529,
-      },
-      {
-        'name': 'France',
-        'emoji': '🇫🇷',
-        'code': 'FR',
-        'capital': 'Paris',
-        'currency': 'EUR',
-        'lat': 46.6034,
-        'lng': 1.8883,
-      },
-      {
-        'name': 'Italy',
-        'emoji': '🇮🇹',
-        'code': 'IT',
-        'capital': 'Rome',
-        'currency': 'EUR',
-        'lat': 41.9028,
-        'lng': 12.4964,
-      },
-    ];
-  }
+// ==================== TRIP API SERVICE ====================
+class TripApiService {
+  static List<Map<String, dynamic>> _cachedCountries = [];
 
-  static List<Map<String, dynamic>> getPlacesForCountry(String country) {
-    final places = {
-      'Sri Lanka': [
-        {
-          'id': '1',
-          'name': 'Sigiriya Rock',
-          'days': 1,
-          'price': 5000,
-          'image': '🏔️',
-          'rating': 4.8,
-          'lat': 7.9569,
-          'lng': 80.7598,
-          'desc': 'Ancient rock fortress',
-        },
-        {
-          'id': '2',
-          'name': 'Kandy Temple',
-          'days': 1,
-          'price': 3000,
-          'image': '🛕',
-          'rating': 4.9,
-          'lat': 7.2936,
-          'lng': 80.6336,
-          'desc': 'Temple of Tooth',
-        },
-        {
-          'id': '3',
-          'name': 'Ella Gap',
-          'days': 1,
-          'price': 4000,
-          'image': '🌄',
-          'rating': 4.7,
-          'lat': 6.8668,
-          'lng': 81.0461,
-          'desc': 'Mountain views',
-        },
-        {
-          'id': '4',
-          'name': 'Galle Fort',
-          'days': 1,
-          'price': 3500,
-          'image': '🏰',
-          'rating': 4.6,
-          'lat': 6.0322,
-          'lng': 80.2151,
-          'desc': 'Dutch Fort',
-        },
-        {
-          'id': '5',
-          'name': 'Bentota Beach',
-          'days': 1,
-          'price': 6000,
-          'image': '🏖️',
-          'rating': 4.5,
-          'lat': 6.4190,
-          'lng': 80.0030,
-          'desc': 'Beach paradise',
-        },
-      ],
-      'India': [
-        {
-          'id': '1',
-          'name': 'Taj Mahal',
-          'days': 1,
-          'price': 6000,
-          'image': '🕌',
-          'rating': 4.9,
-          'lat': 27.1751,
-          'lng': 78.0421,
-          'desc': 'Iconic monument',
-        },
-        {
-          'id': '2',
-          'name': 'Goa Beach',
-          'days': 2,
-          'price': 7000,
-          'image': '🏖️',
-          'rating': 4.5,
-          'lat': 15.2993,
-          'lng': 74.1240,
-          'desc': 'Beach parties',
-        },
-      ],
-      'Thailand': [
-        {
-          'id': '1',
-          'name': 'Phuket',
-          'days': 2,
-          'price': 8000,
-          'image': '🏖️',
-          'rating': 4.8,
-          'lat': 7.8804,
-          'lng': 98.3923,
-          'desc': 'Beautiful beaches',
-        },
-        {
-          'id': '2',
-          'name': 'Bangkok',
-          'days': 1,
-          'price': 6000,
-          'image': '🏙️',
-          'rating': 4.6,
-          'lat': 13.7367,
-          'lng': 100.5231,
-          'desc': 'Vibrant city',
-        },
-      ],
-      'Maldives': [
-        {
-          'id': '1',
-          'name': 'Malé',
-          'days': 1,
-          'price': 10000,
-          'image': '🏙️',
-          'rating': 4.3,
-          'lat': 4.1755,
-          'lng': 73.5093,
-          'desc': 'Capital city',
-        },
-        {
-          'id': '2',
-          'name': 'Maafushi',
-          'days': 2,
-          'price': 15000,
-          'image': '🏖️',
-          'rating': 4.7,
-          'lat': 3.9579,
-          'lng': 73.4877,
-          'desc': 'Local island',
-        },
-      ],
-    };
-    return places[country] ?? [];
-  }
-
-  static List<Map<String, dynamic>> getHotelsForLocation(String country) {
-    final hotels = {
-      'Sri Lanka': [
-        {
-          'id': 'h1',
-          'name': 'Grand Plaza Hotel',
-          'price': 8500,
-          'rating': 4.7,
-          'phone': '+94 112345678',
-          'address': 'Colombo',
-          'distance': '0.3 km',
-          'image': '🏨',
-          'amenities': ['Pool', 'WiFi', 'Restaurant'],
-        },
-        {
-          'id': 'h2',
-          'name': 'Sunset Resort',
-          'price': 7200,
-          'rating': 4.8,
-          'phone': '+94 812345678',
-          'address': 'Kandy',
-          'distance': '0.7 km',
-          'image': '🏨',
-          'amenities': ['Beach View', 'WiFi'],
-        },
-        {
-          'id': 'h3',
-          'name': 'Sigiriya Lodge',
-          'price': 5800,
-          'rating': 4.5,
-          'phone': '+94 572345678',
-          'address': 'Sigiriya',
-          'distance': '1.2 km',
-          'image': '🏨',
-          'amenities': ['Mountain View', 'WiFi'],
-        },
-      ],
-      'India': [
-        {
-          'id': 'h1',
-          'name': 'Taj Hotel',
-          'price': 15000,
-          'rating': 4.9,
-          'phone': '+91 11234567',
-          'address': 'Agra',
-          'distance': '0.5 km',
-          'image': '🏨',
-          'amenities': ['Pool', 'Spa', 'Restaurant'],
-        },
-      ],
-    };
-    return hotels[country] ?? hotels['Sri Lanka']!;
-  }
-
-  static List<Map<String, dynamic>> filterCountries(String query) {
-    final countries = getCountries();
-    if (query.isEmpty) return countries;
-    return countries
+  static Future<List<Map<String, dynamic>>> searchCountries(
+    String query,
+  ) async {
+    if (_cachedCountries.isEmpty) {
+      await _loadCountries();
+    }
+    if (query.isEmpty) return _cachedCountries;
+    return _cachedCountries
         .where(
           (c) =>
               c['name'].toLowerCase().contains(query.toLowerCase()) ||
@@ -331,81 +63,403 @@ class CountryHelper {
         )
         .toList();
   }
+
+  static Future<void> _loadCountries() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse(
+              'https://restcountries.com/v3.1/all?fields=name,cca2,capital,currencies,flags',
+            ),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        for (var country in data) {
+          String name = country['name']?['common'] ?? '';
+          String code = country['cca2'] ?? '';
+          String capital =
+              country['capital'] != null && country['capital'].isNotEmpty
+              ? country['capital'][0]
+              : 'N/A';
+          String currency = country['currencies'] != null
+              ? country['currencies'].keys.first
+              : 'N/A';
+          String flag = _getFlagEmoji(code);
+
+          _cachedCountries.add({
+            'name': name,
+            'code': code,
+            'capital': capital,
+            'currency': currency,
+            'flag': flag,
+          });
+        }
+        _cachedCountries.sort((a, b) => a['name'].compareTo(b['name']));
+      }
+    } catch (e) {
+      _useFallbackCountries();
+    }
+  }
+
+  static String _getFlagEmoji(String countryCode) {
+    if (countryCode.isEmpty) return '🌍';
+    const offset = 127397;
+    return String.fromCharCodes(
+      countryCode.runes.map((r) => r + offset).toList(),
+    );
+  }
+
+  static void _useFallbackCountries() {
+    _cachedCountries = [
+      {
+        'name': 'Sri Lanka',
+        'code': 'LK',
+        'capital': 'Colombo',
+        'currency': 'LKR',
+        'flag': '🇱🇰',
+      },
+      {
+        'name': 'India',
+        'code': 'IN',
+        'capital': 'New Delhi',
+        'currency': 'INR',
+        'flag': '🇮🇳',
+      },
+      {
+        'name': 'Thailand',
+        'code': 'TH',
+        'capital': 'Bangkok',
+        'currency': 'THB',
+        'flag': '🇹🇭',
+      },
+      {
+        'name': 'Japan',
+        'code': 'JP',
+        'capital': 'Tokyo',
+        'currency': 'JPY',
+        'flag': '🇯🇵',
+      },
+      {
+        'name': 'France',
+        'code': 'FR',
+        'capital': 'Paris',
+        'currency': 'EUR',
+        'flag': '🇫🇷',
+      },
+      {
+        'name': 'Italy',
+        'code': 'IT',
+        'capital': 'Rome',
+        'currency': 'EUR',
+        'flag': '🇮🇹',
+      },
+      {
+        'name': 'Germany',
+        'code': 'DE',
+        'capital': 'Berlin',
+        'currency': 'EUR',
+        'flag': '🇩🇪',
+      },
+      {
+        'name': 'USA',
+        'code': 'US',
+        'capital': 'Washington D.C.',
+        'currency': 'USD',
+        'flag': '🇺🇸',
+      },
+      {
+        'name': 'UK',
+        'code': 'GB',
+        'capital': 'London',
+        'currency': 'GBP',
+        'flag': '🇬🇧',
+      },
+      {
+        'name': 'Australia',
+        'code': 'AU',
+        'capital': 'Canberra',
+        'currency': 'AUD',
+        'flag': '🇦🇺',
+      },
+      {
+        'name': 'Canada',
+        'code': 'CA',
+        'capital': 'Ottawa',
+        'currency': 'CAD',
+        'flag': '🇨🇦',
+      },
+      {
+        'name': 'Maldives',
+        'code': 'MV',
+        'capital': 'Malé',
+        'currency': 'MVR',
+        'flag': '🇲🇻',
+      },
+      {
+        'name': 'Singapore',
+        'code': 'SG',
+        'capital': 'Singapore',
+        'currency': 'SGD',
+        'flag': '🇸🇬',
+      },
+      {
+        'name': 'Malaysia',
+        'code': 'MY',
+        'capital': 'Kuala Lumpur',
+        'currency': 'MYR',
+        'flag': '🇲🇾',
+      },
+      {
+        'name': 'Vietnam',
+        'code': 'VN',
+        'capital': 'Hanoi',
+        'currency': 'VND',
+        'flag': '🇻🇳',
+      },
+      {
+        'name': 'Indonesia',
+        'code': 'ID',
+        'capital': 'Jakarta',
+        'currency': 'IDR',
+        'flag': '🇮🇩',
+      },
+    ];
+  }
+
+  static List<Place> getPlacesForCountry(String countryName) {
+    final Map<String, List<Place>> placesMap = {
+      'Sri Lanka': [
+        Place(
+          id: '1',
+          name: 'Sigiriya Rock',
+          description: 'Ancient rock fortress',
+          rating: 4.8,
+          lat: 7.9569,
+          lng: 80.7598,
+          imageUrl: 'https://picsum.photos/id/1015/400/300',
+          category: 'Historical',
+        ),
+        Place(
+          id: '2',
+          name: 'Kandy Temple',
+          description: 'Temple of Tooth',
+          rating: 4.9,
+          lat: 7.2936,
+          lng: 80.6336,
+          imageUrl: 'https://picsum.photos/id/1016/400/300',
+          category: 'Cultural',
+        ),
+        Place(
+          id: '3',
+          name: 'Ella Gap',
+          description: 'Mountain views',
+          rating: 4.7,
+          lat: 6.8668,
+          lng: 81.0461,
+          imageUrl: 'https://picsum.photos/id/1018/400/300',
+          category: 'Nature',
+        ),
+        Place(
+          id: '4',
+          name: 'Galle Fort',
+          description: 'Dutch Fort',
+          rating: 4.6,
+          lat: 6.0322,
+          lng: 80.2151,
+          imageUrl: 'https://picsum.photos/id/1019/400/300',
+          category: 'Historical',
+        ),
+        Place(
+          id: '5',
+          name: 'Bentota Beach',
+          description: 'Beach paradise',
+          rating: 4.5,
+          lat: 6.4190,
+          lng: 80.0030,
+          imageUrl: 'https://picsum.photos/id/1020/400/300',
+          category: 'Beach',
+        ),
+      ],
+      'India': [
+        Place(
+          id: '6',
+          name: 'Taj Mahal',
+          description: 'Iconic monument',
+          rating: 4.9,
+          lat: 27.1751,
+          lng: 78.0421,
+          imageUrl: 'https://picsum.photos/id/1015/400/300',
+          category: 'Historical',
+        ),
+        Place(
+          id: '7',
+          name: 'Goa Beach',
+          description: 'Beach parties',
+          rating: 4.6,
+          lat: 15.2993,
+          lng: 74.1240,
+          imageUrl: 'https://picsum.photos/id/1016/400/300',
+          category: 'Beach',
+        ),
+      ],
+      'Thailand': [
+        Place(
+          id: '8',
+          name: 'Phuket',
+          description: 'Beautiful beaches',
+          rating: 4.8,
+          lat: 7.8804,
+          lng: 98.3923,
+          imageUrl: 'https://picsum.photos/id/1015/400/300',
+          category: 'Beach',
+        ),
+        Place(
+          id: '9',
+          name: 'Bangkok',
+          description: 'Vibrant capital',
+          rating: 4.6,
+          lat: 13.7367,
+          lng: 100.5231,
+          imageUrl: 'https://picsum.photos/id/1016/400/300',
+          category: 'City',
+        ),
+      ],
+      'Japan': [
+        Place(
+          id: '10',
+          name: 'Tokyo',
+          description: 'Modern metropolis',
+          rating: 4.9,
+          lat: 35.6762,
+          lng: 139.6503,
+          imageUrl: 'https://picsum.photos/id/1015/400/300',
+          category: 'City',
+        ),
+        Place(
+          id: '11',
+          name: 'Kyoto',
+          description: 'Ancient temples',
+          rating: 4.8,
+          lat: 35.0116,
+          lng: 135.7681,
+          imageUrl: 'https://picsum.photos/id/1016/400/300',
+          category: 'Cultural',
+        ),
+      ],
+      'France': [
+        Place(
+          id: '12',
+          name: 'Eiffel Tower',
+          description: 'Iconic landmark',
+          rating: 4.9,
+          lat: 48.8584,
+          lng: 2.2945,
+          imageUrl: 'https://picsum.photos/id/1015/400/300',
+          category: 'Landmark',
+        ),
+        Place(
+          id: '13',
+          name: 'Louvre Museum',
+          description: 'Art museum',
+          rating: 4.8,
+          lat: 48.8606,
+          lng: 2.3376,
+          imageUrl: 'https://picsum.photos/id/1016/400/300',
+          category: 'Cultural',
+        ),
+      ],
+    };
+    return placesMap[countryName] ?? [];
+  }
 }
 
-// ==================== MAP WIDGET ====================
-class SimpleMapWidget extends StatelessWidget {
-  final double lat;
-  final double lng;
-  final String locationName;
-  final List<Map<String, dynamic>> markers;
-  final List<LatLng> routePoints;
+List<Map<String, dynamic>> getHotels() {
+  return [
+    {
+      'name': 'Grand Plaza Hotel',
+      'rating': 4.7,
+      'price': 8500,
+      'phone': '+94 112345678',
+      'lat': 7.8731,
+      'lng': 80.7718,
+    },
+    {
+      'name': 'Sunset Resort',
+      'rating': 4.8,
+      'price': 7200,
+      'phone': '+94 812345678',
+      'lat': 7.2936,
+      'lng': 80.6336,
+    },
+    {
+      'name': 'City Inn',
+      'rating': 4.5,
+      'price': 5800,
+      'phone': '+94 572345678',
+      'lat': 6.8668,
+      'lng': 81.0461,
+    },
+  ];
+}
 
-  const SimpleMapWidget({
-    super.key,
-    required this.lat,
-    required this.lng,
-    required this.locationName,
-    this.markers = const [],
-    this.routePoints = const [],
-  });
+List<Driver> getDrivers() {
+  return [
+    Driver(
+      name: 'Kamal Perera',
+      phone: '+94 77 123 4567',
+      rating: 4.8,
+      vehicleType: 'Toyota Prius',
+      pricePerDay: 4500,
+    ),
+    Driver(
+      name: 'Nimal Silva',
+      phone: '+94 71 987 6543',
+      rating: 4.9,
+      vehicleType: 'Suzuki Wagon R',
+      pricePerDay: 4000,
+    ),
+    Driver(
+      name: 'Sunil Bandara',
+      phone: '+94 76 555 1234',
+      rating: 4.7,
+      vehicleType: 'Hyundai Grand i10',
+      pricePerDay: 4200,
+    ),
+  ];
+}
+
+// ==================== FRIENDS PAGE ====================
+class FriendsPage extends StatelessWidget {
+  const FriendsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 250,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Travel Buddies'),
+        backgroundColor: const Color(0xFF2D9C7C),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: LatLng(lat, lng),
-            initialZoom: 7.0,
-          ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.smart_travel_route_sl.app',
+            const Text('No friends added yet.'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context, [
+                  {'name': 'Sarah Johnson', 'id': '1'},
+                  {'name': 'Mike Chen', 'id': '2'},
+                  {'name': 'Emma Watson', 'id': '3'},
+                ]);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2D9C7C),
+              ),
+              child: const Text('Add Demo Friends'),
             ),
-            if (routePoints.length >= 2)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: routePoints,
-                    color: const Color(0xFF2D9C7C),
-                    strokeWidth: 4,
-                  ),
-                ],
-              ),
-            if (markers.isNotEmpty)
-              MarkerLayer(
-                markers: markers
-                    .map(
-                      (m) => Marker(
-                        point: LatLng(m['lat'], m['lng']),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2D9C7C),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: Text(
-                            '${m['index']}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
           ],
         ),
       ),
@@ -413,7 +467,262 @@ class SimpleMapWidget extends StatelessWidget {
   }
 }
 
-// ==================== BUCKET PAGE ====================
+// ==================== CHAT PAGE ====================
+class ChatPage extends StatelessWidget {
+  const ChatPage({super.key, this.friend});
+  final Map<String, dynamic>? friend;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          friend != null ? 'Chat with ${friend!['name']}' : 'Trip Chat',
+        ),
+        backgroundColor: const Color(0xFF2D9C7C),
+      ),
+      body: const Center(child: Text('Chat feature coming soon!')),
+    );
+  }
+}
+
+// ==================== FULL SCREEN MAP PAGE ====================
+class FullScreenMapPage extends StatefulWidget {
+  final List<Place> places;
+  final List<Place> selectedPlaces;
+
+  const FullScreenMapPage({
+    super.key,
+    required this.places,
+    required this.selectedPlaces,
+  });
+
+  @override
+  State<FullScreenMapPage> createState() => _FullScreenMapPageState();
+}
+
+class _FullScreenMapPageState extends State<FullScreenMapPage> {
+  final MapController _mapController = MapController();
+  List<LatLng> _routePoints = [];
+  List<Place> _searchResults = [];
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateRoute();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _updateRoute() {
+    _routePoints = widget.selectedPlaces
+        .map((p) => LatLng(p.lat, p.lng))
+        .toList();
+    if (_routePoints.length >= 2) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: LatLngBounds.fromPoints(_routePoints),
+            padding: const EdgeInsets.all(50),
+          ),
+        );
+      });
+    }
+  }
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      final query = _searchController.text.toLowerCase();
+      if (query.isEmpty) {
+        setState(() => _searchResults = []);
+      } else {
+        setState(() {
+          _searchResults = widget.places
+              .where((p) => p.name.toLowerCase().contains(query))
+              .toList();
+        });
+      }
+    });
+  }
+
+  void _addPlace(Place place) {
+    Navigator.pop(context, place);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Explore Map'),
+        backgroundColor: const Color(0xFF2D9C7C),
+      ),
+      body: Stack(
+        children: [
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: const LatLng(7.8731, 80.7718),
+              initialZoom: 7,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.app',
+              ),
+              if (_routePoints.length >= 2)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routePoints,
+                      color: const Color(0xFF2D9C7C),
+                      strokeWidth: 4,
+                    ),
+                  ],
+                ),
+              MarkerLayer(
+                markers: [
+                  ...widget.selectedPlaces.asMap().entries.map(
+                    (entry) => Marker(
+                      point: LatLng(entry.value.lat, entry.value.lng),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF2D9C7C),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${entry.key + 1}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                  ..._searchResults.map(
+                    (place) => Marker(
+                      point: LatLng(place.lat, place.lng),
+                      child: GestureDetector(
+                        onTap: () => _addPlace(place),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: Card(
+              elevation: 4,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: '🔍 Search for places...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (_searchResults.isNotEmpty)
+            Positioned(
+              top: 80,
+              left: 16,
+              right: 16,
+              child: Card(
+                elevation: 4,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _searchResults.length,
+                  itemBuilder: (context, index) {
+                    final place = _searchResults[index];
+                    return ListTile(
+                      leading: const Icon(
+                        Icons.location_on,
+                        color: Color(0xFF2D9C7C),
+                      ),
+                      title: Text(place.name),
+                      subtitle: Text(place.category),
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.add_circle,
+                          color: Color(0xFF2D9C7C),
+                        ),
+                        onPressed: () => _addPlace(place),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${widget.selectedPlaces.length} places selected',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tap + to add new places',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                  const Icon(Icons.swipe, color: Color(0xFF2D9C7C)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== MAIN BUCKET PAGE ====================
 class BucketPage extends StatefulWidget {
   const BucketPage({super.key});
 
@@ -422,117 +731,117 @@ class BucketPage extends StatefulWidget {
 }
 
 class _BucketPageState extends State<BucketPage> {
-  List<TripPlan> _trips = [];
-  bool _isLoading = true;
-  int _selectedTabIndex = 0;
-
-  // Trip Wizard State
-  List<Map<String, dynamic>> _countrySuggestions = [];
-  final TextEditingController _searchController = TextEditingController();
-
-  String _selectedCountry = '';
-  String _selectedCountryFlag = '🇱🇰';
-  double _selectedLat = 7.8731;
-  double _selectedLng = 80.7718;
-
+  int _currentStep = 0;
+  Map<String, dynamic>? _selectedCountry;
   DateTime _startDate = DateTime.now().add(const Duration(days: 30));
   DateTime _endDate = DateTime.now().add(const Duration(days: 33));
   int _travelers = 2;
   double _budget = 50000;
 
-  List<Map<String, dynamic>> _availablePlaces = [];
-  List<Map<String, dynamic>> _selectedPlaces = [];
-  List<Map<String, dynamic>> _hotels = [];
-  List<Map<String, dynamic>> _nearbyPlaces = [];
+  // Country Search
+  final TextEditingController _countrySearchController =
+      TextEditingController();
+  List<Map<String, dynamic>> _countrySuggestions = [];
+  bool _isLoadingCountries = false;
 
-  // Map
-  List<Map<String, dynamic>> _mapMarkers = [];
-  List<LatLng> _routePoints = [];
+  // Places Search
+  final TextEditingController _placeSearchController = TextEditingController();
+  List<Place> _placeSuggestions = [];
+  Timer? _debounce;
+  List<Place> _selectedPlaces = [];
+  List<Place> _allPlaces = [];
 
-  final List<String> _filters = ['All', 'Upcoming', 'Completed'];
+  // Hotels & Driver
+  Map<String, dynamic>? _selectedHotel;
+  Driver? _selectedDriver;
+
+  // Friends
+  List<Map<String, dynamic>> _friends = [];
 
   @override
   void initState() {
     super.initState();
-    _loadTrips();
-    _searchController.addListener(_onSearchChanged);
+    _countrySearchController.addListener(_onCountrySearch);
+    _placeSearchController.addListener(_onPlaceSearch);
   }
 
-  void _loadTrips() {
+  // ==================== COUNTRY SEARCH ====================
+  void _onCountrySearch() async {
+    final query = _countrySearchController.text;
+    if (query.isEmpty) {
+      setState(() => _countrySuggestions = []);
+      return;
+    }
+    setState(() => _isLoadingCountries = true);
+    final results = await TripApiService.searchCountries(query);
     setState(() {
-      _trips = BucketService.getTrips();
-      _isLoading = false;
+      _countrySuggestions = results;
+      _isLoadingCountries = false;
     });
   }
 
-  void _updateMapMarkers() {
-    setState(() {
-      _mapMarkers = [];
-      _routePoints = [];
-      for (int i = 0; i < _selectedPlaces.length; i++) {
-        _mapMarkers.add({
-          'lat': _selectedPlaces[i]['lat'],
-          'lng': _selectedPlaces[i]['lng'],
-          'index': i + 1,
+  // ==================== PLACE SEARCH (WITH SUGGESTIONS) ====================
+  void _onPlaceSearch() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      final query = _placeSearchController.text.toLowerCase().trim();
+      if (query.isEmpty) {
+        setState(() => _placeSuggestions = []);
+      } else if (_allPlaces.isNotEmpty) {
+        setState(() {
+          _placeSuggestions = _allPlaces
+              .where(
+                (p) =>
+                    p.name.toLowerCase().contains(query) ||
+                    p.category.toLowerCase().contains(query),
+              )
+              .toList();
         });
-        _routePoints.add(
-          LatLng(_selectedPlaces[i]['lat'], _selectedPlaces[i]['lng']),
-        );
       }
-    });
-  }
-
-  void _onSearchChanged() {
-    final query = _searchController.text;
-    setState(() {
-      _countrySuggestions = CountryHelper.filterCountries(query);
     });
   }
 
   void _selectCountry(Map<String, dynamic> country) {
     setState(() {
-      _selectedCountry = country['name'];
-      _selectedCountryFlag = country['emoji'];
-      _selectedLat = country['lat'];
-      _selectedLng = country['lng'];
-      _searchController.text = country['name'];
-      _countrySuggestions = [];
-      _availablePlaces = CountryHelper.getPlacesForCountry(country['name']);
-      _hotels = CountryHelper.getHotelsForLocation(country['name']);
+      _selectedCountry = country;
+      _allPlaces = TripApiService.getPlacesForCountry(country['name']);
       _selectedPlaces = [];
-      _updateMapMarkers();
+      _countrySearchController.text = '${country['flag']} ${country['name']}';
+      _countrySuggestions = [];
+      _placeSearchController.clear();
+      _placeSuggestions = [];
     });
   }
 
-  void _togglePlace(Map<String, dynamic> place) {
+  void _selectPlace(Place place) {
     setState(() {
-      if (_selectedPlaces.contains(place)) {
-        _selectedPlaces.remove(place);
-      } else {
+      if (!_selectedPlaces.contains(place)) {
         _selectedPlaces.add(place);
       }
-      _updateMapMarkers();
+      _placeSearchController.clear();
+      _placeSuggestions = [];
     });
   }
 
-  void _autoPlan() {
+  void _removePlace(Place place) {
     setState(() {
-      _selectedPlaces = [];
-      final days = _endDate.difference(_startDate).inDays;
-      final maxPlaces = days > _availablePlaces.length
-          ? _availablePlaces.length
-          : days;
-      for (int i = 0; i < maxPlaces; i++) {
-        _selectedPlaces.add(_availablePlaces[i]);
-      }
-      _updateMapMarkers();
+      _selectedPlaces.remove(place);
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✨ Auto-planned places!'),
-        backgroundColor: Color(0xFF2D9C7C),
+  }
+
+  void _openFullScreenMap() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FullScreenMapPage(
+          places: _allPlaces,
+          selectedPlaces: _selectedPlaces,
+        ),
       ),
     );
+    if (result != null && result is Place) {
+      _selectPlace(result);
+    }
   }
 
   void _saveTrip() {
@@ -540,65 +849,26 @@ class _BucketPageState extends State<BucketPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select at least one place'),
-          backgroundColor: Colors.red,
+          backgroundColor: Colors.orange,
         ),
       );
       return;
     }
-
-    final activitiesList = _selectedPlaces
-        .map<String>((p) => p['name'] as String)
-        .toList();
-    final totalCost = _selectedPlaces.fold<double>(
-      0.0,
-      (sum, p) => sum + (p['price'] as double? ?? 0.0),
-    );
-    final days = _endDate.difference(_startDate).inDays;
-    final daysCount = days > 0 ? days : 1;
-
-    final newTrip = TripPlan(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      destination: _selectedPlaces.map((p) => p['name'] as String).join(', '),
-      country: _selectedCountry,
-      countryFlag: _selectedCountryFlag,
-      image: _selectedPlaces.first['image'] as String,
-      startDate: _startDate,
-      endDate: _endDate,
-      travelers: _travelers,
-      budget: totalCost + (5000 * _travelers * daysCount),
-      accommodation: 'Hotel',
-      transport: 'Flight',
-      activities: activitiesList,
-      notes: 'Planned via Trip Wizard',
-      status: 'Planning',
-      hotelName: _hotels.isNotEmpty ? _hotels.first['name'] : '',
-      hotelPhone: _hotels.isNotEmpty ? _hotels.first['phone'] : '',
-      hotelAddress: _hotels.isNotEmpty ? _hotels.first['address'] : '',
-      selectedPlaces: List.from(_selectedPlaces),
-      spentAmount: 0,
-    );
-
-    BucketService.addTrip(newTrip);
-    _loadTrips();
-    setState(() => _selectedTabIndex = 0);
-
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🎉 Trip saved to ${_selectedCountry}!'),
-        backgroundColor: const Color(0xFF2D9C7C),
+      const SnackBar(
+        content: Text('✅ Trip saved successfully!'),
+        backgroundColor: Color(0xFF2D9C7C),
       ),
     );
+    Navigator.pop(context);
+  }
 
-    // Reset
-    setState(() {
-      _selectedPlaces = [];
-      _selectedCountry = '';
-      _searchController.clear();
-      _availablePlaces = [];
-      _hotels = [];
-      _mapMarkers = [];
-      _routePoints = [];
-    });
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _countrySearchController.dispose();
+    _placeSearchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -607,222 +877,108 @@ class _BucketPageState extends State<BucketPage> {
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text(
-          'Travel Planner',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2C3E50),
-          ),
+          'Plan Your Trip',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFF2D9C7C),
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF2C3E50)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(50),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chat),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatPage()),
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Step Indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
               children: [
-                _buildTabButton('My Trips', 0, Icons.airplane_ticket),
-                _buildTabButton('Trip Wizard', 1, Icons.auto_awesome),
-              ],
-            ),
-          ),
-        ),
-      ),
-      body: _selectedTabIndex == 0 ? _buildMyTripsTab() : _buildTripWizard(),
-    );
-  }
-
-  Widget _buildTabButton(String label, int index, IconData icon) {
-    final isSelected = _selectedTabIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedTabIndex = index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF2D9C7C) : Colors.transparent,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? Colors.white : Colors.grey[600],
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMyTripsTab() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_trips.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.airplane_ticket_outlined,
-              size: 80,
-              color: Colors.grey[300],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No trips planned yet',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Tap Trip Wizard to plan your next adventure',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => setState(() => _selectedTabIndex = 1),
-              icon: const Icon(Icons.auto_awesome),
-              label: const Text('Open Trip Wizard'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2D9C7C),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _trips.length,
-      itemBuilder: (context, index) => _buildTripCard(_trips[index]),
-    );
-  }
-
-  Widget _buildTripCard(TripPlan trip) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10),
-        ],
-      ),
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-                child: Container(
-                  height: 100,
-                  width: double.infinity,
-                  color: const Color(0xFF2D9C7C).withOpacity(0.1),
-                  child: Center(
-                    child: Text(
-                      trip.image,
-                      style: const TextStyle(fontSize: 40),
-                    ),
+                _buildStepIndicator(1, 'Dest', _currentStep >= 0),
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    color: _currentStep >= 1
+                        ? const Color(0xFF2D9C7C)
+                        : Colors.grey[300],
                   ),
                 ),
-              ),
-              Positioned(
-                bottom: 12,
-                left: 12,
-                child: Row(
-                  children: [
-                    Text(
-                      trip.countryFlag,
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      trip.destination,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: [Shadow(blurRadius: 4, color: Colors.black38)],
-                      ),
-                    ),
-                  ],
+                _buildStepIndicator(2, 'Places', _currentStep >= 1),
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    color: _currentStep >= 2
+                        ? const Color(0xFF2D9C7C)
+                        : Colors.grey[300],
+                  ),
                 ),
-              ),
-            ],
+                _buildStepIndicator(3, 'Stay', _currentStep >= 2),
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    color: _currentStep >= 3
+                        ? const Color(0xFF2D9C7C)
+                        : Colors.grey[300],
+                  ),
+                ),
+                _buildStepIndicator(4, 'Friends', _currentStep >= 3),
+              ],
+            ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
+          // Content
+          Expanded(
+            child: IndexedStack(
+              index: _currentStep,
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 14,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${DateFormat('MMM dd').format(trip.startDate)} - ${DateFormat('MMM dd').format(trip.endDate)}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    const Spacer(),
-                    const Icon(Icons.people, size: 14, color: Colors.grey),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${trip.travelers}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.attach_money,
-                      size: 14,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'LKR ${trip.budget.toInt()}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D9C7C),
+                _buildStep1(),
+                _buildStep2(),
+                _buildStep3(),
+                _buildStep4(),
+              ],
+            ),
+          ),
+          // Bottom Buttons
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+              ],
+            ),
+            child: Row(
+              children: [
+                if (_currentStep > 0)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => setState(() => _currentStep--),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF2D9C7C)),
                       ),
+                      child: const Text('Back'),
                     ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () {
-                        BucketService.deleteTrip(trip.id);
-                        _loadTrips();
-                        setState(() {});
-                      },
+                  ),
+                if (_currentStep > 0) const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_currentStep < 3) {
+                        setState(() => _currentStep++);
+                      } else {
+                        _saveTrip();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D9C7C),
                     ),
-                  ],
+                    child: Text(_currentStep == 3 ? 'Save Trip' : 'Continue'),
+                  ),
                 ),
               ],
             ),
@@ -832,23 +988,64 @@ class _BucketPageState extends State<BucketPage> {
     );
   }
 
-  Widget _buildTripWizard() {
+  Widget _buildStepIndicator(int step, String label, bool isActive) {
+    return Column(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isActive ? const Color(0xFF2D9C7C) : Colors.white,
+            border: Border.all(
+              color: isActive ? const Color(0xFF2D9C7C) : Colors.grey[300]!,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              '$step',
+              style: TextStyle(
+                color: isActive ? Colors.white : Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: isActive ? const Color(0xFF2D9C7C) : Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==================== STEP 1: DESTINATION ====================
+  Widget _buildStep1() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Step 1: Country Search
           const Text(
-            '🌍 1. Select Country',
+            'Search Country',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           TextField(
-            controller: _searchController,
+            controller: _countrySearchController,
             decoration: InputDecoration(
               hintText: '🔍 Type country name...',
-              prefixIcon: const Icon(Icons.search, color: Color(0xFF2D9C7C)),
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _isLoadingCountries
+                  ? const SizedBox(
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : null,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(30),
               ),
@@ -868,46 +1065,67 @@ class _BucketPageState extends State<BucketPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _countrySuggestions.length,
-                itemBuilder: (context, index) => ListTile(
-                  leading: Text(
-                    _countrySuggestions[index]['emoji'],
-                    style: const TextStyle(fontSize: 28),
-                  ),
-                  title: Text(
-                    _countrySuggestions[index]['name'],
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(_countrySuggestions[index]['capital']),
-                  trailing: const Icon(
-                    Icons.arrow_forward,
-                    color: Color(0xFF2D9C7C),
-                  ),
-                  onTap: () => _selectCountry(_countrySuggestions[index]),
-                ),
+                itemBuilder: (context, index) {
+                  final country = _countrySuggestions[index];
+                  return ListTile(
+                    leading: Text(
+                      country['flag'],
+                      style: const TextStyle(fontSize: 32),
+                    ),
+                    title: Text(
+                      country['name'],
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      '${country['capital']} • ${country['currency']}',
+                    ),
+                    trailing: const Icon(
+                      Icons.arrow_forward,
+                      color: Color(0xFF2D9C7C),
+                    ),
+                    onTap: () => _selectCountry(country),
+                  );
+                },
               ),
             ),
-
-          if (_selectedCountry.isNotEmpty) ...[
+          if (_selectedCountry != null) ...[
             const SizedBox(height: 24),
-
-            // Step 2: Map View
-            const Text(
-              '🗺️ 2. Map View',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            SimpleMapWidget(
-              lat: _selectedLat,
-              lng: _selectedLng,
-              locationName: _selectedCountry,
-              markers: _mapMarkers,
-              routePoints: _routePoints,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D9C7C).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    _selectedCountry!['flag'],
+                    style: const TextStyle(fontSize: 40),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedCountry!['name'],
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${_selectedCountry!['capital']} • ${_selectedCountry!['currency']}',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
-
-            // Step 3: Trip Details
             const Text(
-              '📋 3. Trip Details',
+              'Travel Dates',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -925,10 +1143,7 @@ class _BucketPageState extends State<BucketPage> {
                       if (picked != null) setState(() => _startDate = picked);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -936,11 +1151,7 @@ class _BucketPageState extends State<BucketPage> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.calendar_today,
-                            size: 18,
-                            color: Color(0xFF2D9C7C),
-                          ),
+                          const Icon(Icons.calendar_today, size: 18),
                           const SizedBox(width: 8),
                           Text(DateFormat('MMM dd, yyyy').format(_startDate)),
                         ],
@@ -961,10 +1172,7 @@ class _BucketPageState extends State<BucketPage> {
                       if (picked != null) setState(() => _endDate = picked);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -972,11 +1180,7 @@ class _BucketPageState extends State<BucketPage> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.calendar_today,
-                            size: 18,
-                            color: Color(0xFF2D9C7C),
-                          ),
+                          const Icon(Icons.calendar_today, size: 18),
                           const SizedBox(width: 8),
                           Text(DateFormat('MMM dd, yyyy').format(_endDate)),
                         ],
@@ -986,272 +1190,561 @@ class _BucketPageState extends State<BucketPage> {
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            const Text(
+              'Travelers & Budget',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: Row(
-                    children: [
-                      const Text('👥', style: TextStyle(fontSize: 20)),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.remove_circle,
-                          color: Color(0xFF2D9C7C),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => setState(
+                            () => _travelers = _travelers > 1
+                                ? _travelers - 1
+                                : 1,
+                          ),
+                          icon: const Icon(Icons.remove, size: 18),
                         ),
-                        onPressed: () => setState(
-                          () =>
-                              _travelers = _travelers > 1 ? _travelers - 1 : 1,
+                        Text(
+                          '$_travelers',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      Text(
-                        '$_travelers',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                        IconButton(
+                          onPressed: () => setState(() => _travelers++),
+                          icon: const Icon(Icons.add, size: 18),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.add_circle,
-                          color: Color(0xFF2D9C7C),
-                        ),
-                        onPressed: () => setState(() => _travelers++),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        const Text('travelers'),
+                      ],
+                    ),
                   ),
                 ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'Budget (LKR)',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.currency_rupee),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(),
                     ),
                     onChanged: (v) => _budget = double.tryParse(v) ?? 0,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+          ],
+        ],
+      ),
+    );
+  }
 
-            // Step 4: Places to Visit
-            const Text(
-              '📍 4. Places to Visit',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  // ==================== STEP 2: SELECT PLACES ====================
+  Widget _buildStep2() {
+    if (_selectedCountry == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Please select a country first',
+              style: TextStyle(color: Colors.grey),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: _availablePlaces.map((place) {
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: TextField(
+            controller: _placeSearchController,
+            decoration: InputDecoration(
+              hintText: '🔍 Search places in ${_selectedCountry!['name']}...',
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF2D9C7C)),
+              suffixIcon: _placeSearchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        _placeSearchController.clear();
+                        setState(() => _placeSuggestions = []);
+                      },
+                    ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+        ),
+
+        // Search Suggestions
+        if (_placeSuggestions.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _placeSuggestions.length,
+              itemBuilder: (context, index) {
+                final place = _placeSuggestions[index];
                 final isSelected = _selectedPlaces.contains(place);
-                return GestureDetector(
-                  onTap: () => _togglePlace(place),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFF2D9C7C)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF2D9C7C)
-                            : Colors.grey[300]!,
+                return ListTile(
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: place.imageUrl,
+                      width: 45,
+                      height: 45,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        width: 45,
+                        height: 45,
+                        color: Colors.grey[200],
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        width: 45,
+                        height: 45,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.image, size: 20),
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          place['image'],
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          place['name'],
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                        if (isSelected) ...[
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.check_circle,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ],
-                    ),
                   ),
+                  title: Text(
+                    place.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(place.category),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle, color: Color(0xFF2D9C7C))
+                      : IconButton(
+                          icon: const Icon(
+                            Icons.add_circle,
+                            color: Color(0xFF2D9C7C),
+                          ),
+                          onPressed: () => _selectPlace(place),
+                        ),
+                  onTap: () => _selectPlace(place),
                 );
-              }).toList(),
+              },
             ),
-            const SizedBox(height: 16),
+          ),
 
-            // Auto Plan Button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _autoPlan,
-                icon: const Icon(Icons.auto_awesome),
-                label: Text(
-                  'Auto Plan (${_endDate.difference(_startDate).inDays} days)',
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF2D9C7C)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
+        // Selected Places - Horizontal Scroll Row with Images
+        if (_selectedPlaces.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+              ],
             ),
-            const SizedBox(height: 24),
-
-            // Step 5: Hotels
-            if (_hotels.isNotEmpty) ...[
-              const Text(
-                '🏨 5. Hotels Near You',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ..._hotels.map(
-                (hotel) => Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[200]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        hotel['image'],
-                        style: const TextStyle(fontSize: 32),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '✨ Selected Places',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 120,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _selectedPlaces.length,
+                    itemBuilder: (context, index) {
+                      final place = _selectedPlaces[index];
+                      return Container(
+                        width: 140,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Stack(
                           children: [
-                            Text(
-                              hotel['name'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(16),
+                                  ),
+                                  child: CachedNetworkImage(
+                                    imageUrl: place.imageUrl,
+                                    height: 80,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(
+                                      height: 80,
+                                      color: Colors.grey[200],
+                                    ),
+                                    errorWidget: (_, __, ___) => Container(
+                                      height: 80,
+                                      color: Colors.grey[200],
+                                      child: const Icon(Icons.image, size: 30),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: Text(
+                                    place.name,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
-                            Text(
-                              '⭐ ${hotel['rating']} • ${hotel['distance']} • LKR ${hotel['price']}/night',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Text(
-                              '📞 ${hotel['phone']}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF2D9C7C),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: GestureDetector(
+                                onTap: () => _removePlace(place),
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.phone, color: Color(0xFF2D9C7C)),
-                        onPressed: () {},
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
+              ],
+            ),
+          ),
 
-            // Step 6: Your Itinerary
-            if (_selectedPlaces.isNotEmpty) ...[
-              const Text(
-                '📋 6. Your Itinerary',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2D9C7C).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: _selectedPlaces
-                      .asMap()
-                      .entries
-                      .map(
-                        (entry) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
+        // All Places Grid (if no search query)
+        if (_placeSearchController.text.isEmpty)
+          Expanded(
+            child: _allPlaces.isEmpty
+                ? const Center(
+                    child: Text('No places available for this country'),
+                  )
+                : GridView.builder(
+                    padding: const EdgeInsets.all(12),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.75,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
+                    itemCount: _allPlaces.length,
+                    itemBuilder: (context, index) {
+                      final place = _allPlaces[index];
+                      final isSelected = _selectedPlaces.contains(place);
+                      return GestureDetector(
+                        onTap: () => _selectPlace(place),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF2D9C7C).withOpacity(0.1)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF2D9C7C)
+                                  : Colors.grey[200]!,
+                              width: isSelected ? 2 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF2D9C7C),
-                                  shape: BoxShape.circle,
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(16),
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    '${entry.key + 1}',
-                                    style: const TextStyle(color: Colors.white),
+                                child: CachedNetworkImage(
+                                  imageUrl: place.imageUrl,
+                                  height: 100,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => Container(
+                                    height: 100,
+                                    color: Colors.grey[200],
+                                  ),
+                                  errorWidget: (_, __, ___) => Container(
+                                    height: 100,
+                                    color: Colors.grey[200],
+                                    child: const Icon(Icons.image, size: 40),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  entry.value['name'],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      place.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.star,
+                                          size: 12,
+                                          color: Colors.amber,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          place.rating.toString(),
+                                          style: const TextStyle(fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                    if (isSelected)
+                                      const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.check_circle,
+                                            size: 12,
+                                            color: Color(0xFF2D9C7C),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Added',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Color(0xFF2D9C7C),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
                                 ),
-                              ),
-                              Text(
-                                '${entry.value['days']} day(s)',
-                                style: const TextStyle(color: Colors.grey),
                               ),
                             ],
                           ),
                         ),
-                      )
-                      .toList(),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
+                      );
+                    },
+                  ),
+          ),
 
-            // Save Button
-            SizedBox(
+        // Map Button
+        if (_selectedPlaces.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _saveTrip,
-                icon: const Icon(Icons.save),
-                label: const Text('Save Trip to My Trips'),
+                onPressed: _openFullScreenMap,
+                icon: const Icon(Icons.map),
+                label: const Text('View on Full Screen Map'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2D9C7C),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 30),
-          ],
+          ),
+      ],
+    );
+  }
+
+  // ==================== STEP 3: HOTELS & DRIVER ====================
+  Widget _buildStep3() {
+    final hotels = getHotels();
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '🏨 Select Hotel',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          ...hotels.map(
+            (hotel) => RadioListTile<Map<String, dynamic>>(
+              title: Text(
+                hotel['name'],
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                '⭐ ${hotel['rating']} • LKR ${hotel['price']}/night',
+              ),
+              secondary: IconButton(
+                icon: const Icon(Icons.phone, color: Color(0xFF2D9C7C)),
+                onPressed: () {},
+              ),
+              value: hotel,
+              groupValue: _selectedHotel,
+              onChanged: (value) => setState(() => _selectedHotel = value),
+              activeColor: const Color(0xFF2D9C7C),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            '🚗 Select Driver',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          ...getDrivers().map(
+            (driver) => RadioListTile<Driver>(
+              title: Text(
+                driver.name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                '${driver.vehicleType} • ⭐ ${driver.rating} • LKR ${driver.pricePerDay}/day',
+              ),
+              secondary: IconButton(
+                icon: const Icon(Icons.phone),
+                onPressed: () {},
+              ),
+              value: driver,
+              groupValue: _selectedDriver,
+              onChanged: (value) => setState(() => _selectedDriver = value),
+              activeColor: const Color(0xFF2D9C7C),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  // ==================== STEP 4: FRIENDS ====================
+  Widget _buildStep4() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FriendsPage()),
+              );
+              if (result != null) setState(() => _friends = result);
+            },
+            icon: const Icon(Icons.person_add),
+            label: const Text('Add Travel Buddies'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2D9C7C),
+              minimumSize: const Size(double.infinity, 50),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _friends.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text(
+                        'No friends added yet.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Add friends to plan together',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _friends.length,
+                  itemBuilder: (context, index) {
+                    final friend = _friends[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(
+                            0xFF2D9C7C,
+                          ).withOpacity(0.2),
+                          child: Text(
+                            friend['name'][0],
+                            style: const TextStyle(color: Color(0xFF2D9C7C)),
+                          ),
+                        ),
+                        title: Text(friend['name']),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.chat,
+                            color: Color(0xFF2D9C7C),
+                          ),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatPage(friend: friend),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }

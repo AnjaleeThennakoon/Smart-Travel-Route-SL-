@@ -1,3 +1,4 @@
+import 'package:auboo_travel/features/auth/bucket_page.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../routers/app_router.dart';
@@ -7,10 +8,13 @@ import 'wishlist_page.dart';
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
+  // REMOVE THIS LINE - IT'S CAUSING THE ERROR
+  // get ApiService => null;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB), // Light grey background
+      backgroundColor: const Color(0xFFF8F9FB),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -35,43 +39,42 @@ class ProfilePage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 60), // Space for the overlapping card
+            const SizedBox(height: 60),
             _buildMenuItem(
-  Icons.location_on_outlined, 
-  "My Trips", 
-  Colors.blue,
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const MyTripsPage()),
-    );
-  },
-),
-_buildMenuItem(
-  Icons.favorite_border, 
-  "Wishlist", 
-  Colors.red,
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const WishlistPage()),
-    );
-  },
-),
-            
-            // Menu Items
+              Icons.location_on_outlined,
+              "My Trips",
+              Colors.blue,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MyTripsPage()),
+                );
+              },
+            ),
+            _buildMenuItem(
+              Icons.favorite_border,
+              "Wishlist",
+              Colors.red,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const WishlistPage()),
+                );
+              },
+            ),
             _buildMenuItem(Icons.credit_card, "Payment Methods", Colors.green),
-            _buildMenuItem(Icons.notifications_none, "Notifications", Colors.purple),
-            _buildMenuItem(Icons.settings_outlined, "Settings", Colors.grey),
-            // Inside ProfilePage column:
-            
-            // Logout Button
             _buildMenuItem(
-              Icons.logout, 
-              "Logout", 
-              Colors.redAccent, 
-              isLogout: true, 
-              onTap: () => _showLogoutDialog(context)
+              Icons.notifications_none,
+              "Notifications",
+              Colors.purple,
+            ),
+            _buildMenuItem(Icons.settings_outlined, "Settings", Colors.grey),
+            _buildMenuItem(
+              Icons.logout,
+              "Logout",
+              Colors.redAccent,
+              isLogout: true,
+              onTap: () => _showLogoutDialog(context),
             ),
           ],
         ),
@@ -86,7 +89,7 @@ _buildMenuItem(
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)], // Blue to Purple
+          colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -101,11 +104,15 @@ _buildMenuItem(
           ),
           const SizedBox(height: 12),
           Text(
-            ApiService.getUserName(), // Dynamic name
-            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            ApiService.getUserName(), // Use ApiService directly
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const Text(
-            "Traveller", // You can make this dynamic too
+            "Traveller",
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
@@ -146,14 +153,23 @@ _buildMenuItem(
   Widget _buildStatItem(String value, String label) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
         Text(label, style: TextStyle(color: Colors.grey, fontSize: 13)),
       ],
     );
   }
 
   // 3. The Menu List Item
-  Widget _buildMenuItem(IconData icon, String title, Color color, {bool isLogout = false, VoidCallback? onTap}) {
+  Widget _buildMenuItem(
+    IconData icon,
+    String title,
+    Color color, {
+    bool isLogout = false,
+    VoidCallback? onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       decoration: BoxDecoration(
@@ -170,17 +186,15 @@ _buildMenuItem(
           child: Icon(icon, color: color, size: 20),
         ),
         title: Text(
-          title, 
+          title,
           style: TextStyle(
-            fontSize: 15, 
+            fontSize: 15,
             fontWeight: FontWeight.w500,
             color: isLogout ? Colors.redAccent : Colors.black87,
-          )
+          ),
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: onTap ?? () {
-          // General navigation can go here
-        },
+        onTap: onTap ?? () {},
       ),
     );
   }
@@ -201,8 +215,8 @@ _buildMenuItem(
             onPressed: () {
               ApiService.logout();
               Navigator.pushNamedAndRemoveUntil(
-                context, 
-                AppRouter.login, 
+                context,
+                AppRouter.login,
                 (route) => false,
               );
             },

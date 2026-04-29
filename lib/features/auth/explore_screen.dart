@@ -1,9 +1,66 @@
+// lib/features/auth/explore_screen.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'bucket_page.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../services/image_api_service.dart';
 
+// ==================== DESTINATION MODEL ====================
+class DestinationWithImages {
+  final String id;
+  final String name;
+  final String location;
+  final String country;
+  final double rating;
+  final double price;
+  final String category;
+  final String description;
+  String imageUrl;
+  List<String> galleryImages;
+
+  DestinationWithImages({
+    required this.id,
+    required this.name,
+    required this.location,
+    required this.country,
+    required this.rating,
+    required this.price,
+    required this.category,
+    required this.description,
+    this.imageUrl = '',
+    this.galleryImages = const [],
+  });
+}
+
+// ==================== HOTEL MODEL ====================
+class HotelModel {
+  final String id;
+  final String name;
+  final String location;
+  final double price;
+  final double rating;
+  final String phone;
+  final String address;
+  final List<String> amenities;
+  final String description;
+  String imageUrl;
+  List<String> galleryImages;
+
+  HotelModel({
+    required this.id,
+    required this.name,
+    required this.location,
+    required this.price,
+    required this.rating,
+    required this.phone,
+    required this.address,
+    required this.amenities,
+    required this.description,
+    this.imageUrl = '',
+    this.galleryImages = const [],
+  });
+}
+
+// ==================== EXPLORE SCREEN ====================
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
 
@@ -12,28 +69,18 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  // Controllers
-  final TextEditingController _originController = TextEditingController();
-  final TextEditingController _destController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
-  final MapController _mapController = MapController();
 
-  // Route data
-  List<LatLng> routePoints = [];
-  String distance = "";
-  String duration = "";
-  bool isLoading = false;
-
-  // Search
+  List<DestinationWithImages> _destinations = [];
+  List<DestinationWithImages> _filteredDestinations = [];
+  List<HotelModel> _hotels = [];
   List<Map<String, dynamic>> _searchSuggestions = [];
-  Timer? _debounce;
-  bool _isLoadingSuggestions = false;
 
-  // Destinations
-  List<Map<String, dynamic>> _allDestinations = [];
-  List<Map<String, dynamic>> _filteredDestinations = [];
-  bool _isLoadingDestinations = true;
+  bool _isLoading = true;
+  bool _isLoadingHotels = true;
+  bool _isLoadingSuggestions = false;
   String _selectedCategory = 'All';
+
   final List<String> _categories = [
     'All',
     'Beach',
@@ -41,38 +88,31 @@ class _ExploreScreenState extends State<ExploreScreen> {
     'City',
     'Historical',
     'Temple',
+    'Cultural',
   ];
-
-  // Hotels
-  List<Map<String, dynamic>> _hotels = [];
-  bool _isLoadingHotels = false;
-  String _selectedHotelId = '';
-
-  // Selected destination for trip planning
-  Map<String, dynamic>? _selectedDestination;
 
   @override
   void initState() {
     super.initState();
-    _loadDestinations();
-    _loadHotels();
+    _loadAllData();
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
-    _originController.dispose();
-    _destController.dispose();
     _searchController.dispose();
-    _debounce?.cancel();
-    _mapController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadDestinations() async {
-    setState(() => _isLoadingDestinations = true);
-    await Future.delayed(const Duration(milliseconds: 500));
+  Future<void> _loadAllData() async {
+    await Future.wait([_loadDestinations(), _loadHotels()]);
+  }
 
-    _allDestinations = [
+  // ==================== LOAD DESTINATIONS ====================
+  Future<void> _loadDestinations() async {
+    setState(() => _isLoading = true);
+
+    final List<Map<String, dynamic>> baseDestinations = [
       {
         'id': '1',
         'name': 'Sigiriya Rock',
@@ -81,9 +121,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'category': 'Historical',
         'rating': 4.8,
         'price': 50,
-        'image': '🏔️',
-        'description': 'Ancient rock fortress and palace ruins',
-        'imageUrl': 'https://picsum.photos/400/200?random=1',
+        'description':
+            'Ancient rock fortress and palace ruins with stunning views. A UNESCO World Heritage Site.',
       },
       {
         'id': '2',
@@ -93,9 +132,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'category': 'Mountain',
         'rating': 4.7,
         'price': 40,
-        'image': '🌄',
-        'description': 'Beautiful mountain views and hiking trails',
-        'imageUrl': 'https://picsum.photos/400/200?random=2',
+        'description':
+            'Beautiful mountain views and amazing hiking trails. Famous for Nine Arch Bridge.',
       },
       {
         'id': '3',
@@ -105,9 +143,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'category': 'Beach',
         'rating': 4.5,
         'price': 60,
-        'image': '🏖️',
-        'description': 'Beautiful sandy beach with water sports',
-        'imageUrl': 'https://picsum.photos/400/200?random=3',
+        'description': 'Beautiful sandy beach with water sports activities.',
       },
       {
         'id': '4',
@@ -117,21 +153,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'category': 'Historical',
         'rating': 4.6,
         'price': 35,
-        'image': '🏰',
-        'description': 'Dutch colonial fort by the sea',
-        'imageUrl': 'https://picsum.photos/400/200?random=4',
+        'description': 'Dutch colonial fort by the sea with rich history.',
       },
       {
         'id': '5',
-        'name': 'Kandy Temple',
+        'name': 'Temple of Tooth',
         'location': 'Kandy',
         'country': 'Sri Lanka',
         'category': 'Temple',
         'rating': 4.9,
         'price': 25,
-        'image': '🛕',
-        'description': 'Temple of the Sacred Tooth Relic',
-        'imageUrl': 'https://picsum.photos/400/200?random=5',
+        'description':
+            'Sacred Buddhist temple housing the tooth relic of Buddha.',
       },
       {
         'id': '6',
@@ -141,21 +174,71 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'category': 'Mountain',
         'rating': 4.4,
         'price': 45,
-        'image': '⛰️',
-        'description': 'Little England of Sri Lanka',
-        'imageUrl': 'https://picsum.photos/400/200?random=6',
+        'description':
+            '"Little England" with tea plantations and cool climate.',
+      },
+      {
+        'id': '7',
+        'name': 'Mirissa Beach',
+        'location': 'Mirissa',
+        'country': 'Sri Lanka',
+        'category': 'Beach',
+        'rating': 4.7,
+        'price': 55,
+        'description': 'Famous for whale watching and beautiful sunsets.',
+      },
+      {
+        'id': '8',
+        'name': 'Anuradhapura',
+        'location': 'Anuradhapura',
+        'country': 'Sri Lanka',
+        'category': 'Historical',
+        'rating': 4.6,
+        'price': 30,
+        'description': 'Ancient city with sacred Bodhi tree and ruins.',
       },
     ];
 
-    _filteredDestinations = _allDestinations;
-    setState(() => _isLoadingDestinations = false);
+    List<DestinationWithImages> loadedDestinations = [];
+
+    for (var dest in baseDestinations) {
+      String imageUrl = await ImageApiService.getDestinationImage(
+        dest['name'],
+        dest['country'],
+      );
+      List<String> gallery = await ImageApiService.getDestinationGallery(
+        dest['name'],
+        dest['country'],
+      );
+
+      loadedDestinations.add(
+        DestinationWithImages(
+          id: dest['id'],
+          name: dest['name'],
+          location: dest['location'],
+          country: dest['country'],
+          rating: dest['rating'],
+          price: dest['price'],
+          category: dest['category'],
+          description: dest['description'],
+          imageUrl: imageUrl,
+          galleryImages: gallery,
+        ),
+      );
+    }
+
+    setState(() {
+      _destinations = loadedDestinations;
+      _filteredDestinations = loadedDestinations;
+      _isLoading = false;
+    });
   }
 
+  // ==================== LOAD HOTELS ====================
   Future<void> _loadHotels() async {
     setState(() => _isLoadingHotels = true);
-    await Future.delayed(const Duration(milliseconds: 300));
 
-    _hotels = [
+    final List<Map<String, dynamic>> baseHotels = [
       {
         'id': 'h1',
         'name': 'Grand Plaza Hotel',
@@ -163,9 +246,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'price': 8500,
         'rating': 4.5,
         'phone': '+94 112345678',
-        'address': 'Colombo 01',
-        'image': '🏨',
-        'amenities': ['WiFi', 'Pool', 'Restaurant'],
+        'address': 'Colombo 01, Sri Lanka',
+        'amenities': ['WiFi', 'Pool', 'Restaurant', 'Spa', 'Gym'],
+        'description':
+            'Luxury hotel in the heart of Colombo with modern amenities.',
       },
       {
         'id': 'h2',
@@ -174,9 +258,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'price': 6200,
         'rating': 4.3,
         'phone': '+94 342345678',
-        'address': 'Bentota Beach',
-        'image': '🏨',
-        'amenities': ['Beach Access', 'WiFi', 'Spa'],
+        'address': 'Bentota Beach, Sri Lanka',
+        'amenities': ['Beach Access', 'WiFi', 'Spa', 'Restaurant', 'Pool'],
+        'description': 'Beautiful beachfront resort with stunning ocean views.',
       },
       {
         'id': 'h3',
@@ -185,9 +269,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'price': 5500,
         'rating': 4.7,
         'phone': '+94 662345678',
-        'address': 'Sigiriya Road',
-        'image': '🏨',
-        'amenities': ['Pool', 'Restaurant', 'WiFi'],
+        'address': 'Sigiriya Road, Sri Lanka',
+        'amenities': ['Pool', 'Restaurant', 'WiFi', 'Mountain View', 'Yoga'],
+        'description':
+            'Eco-friendly lodge with amazing views of Sigiriya Rock.',
       },
       {
         'id': 'h4',
@@ -196,9 +281,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'price': 4800,
         'rating': 4.6,
         'phone': '+94 572345678',
-        'address': 'Ella Gap',
-        'image': '🏨',
-        'amenities': ['Mountain View', 'WiFi'],
+        'address': 'Ella Gap, Sri Lanka',
+        'amenities': [
+          'Mountain View',
+          'WiFi',
+          'Restaurant',
+          'Hiking',
+          'Bonfire',
+        ],
+        'description': 'Cozy retreat in the misty mountains of Ella.',
       },
       {
         'id': 'h5',
@@ -207,9 +298,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'price': 7200,
         'rating': 4.8,
         'phone': '+94 812345678',
-        'address': 'Kandy City Center',
-        'image': '🏨',
-        'amenities': ['WiFi', 'Restaurant', 'Gym'],
+        'address': 'Kandy City Center, Sri Lanka',
+        'amenities': ['WiFi', 'Restaurant', 'Gym', 'Rooftop Bar'],
+        'description': 'Modern hotel near Temple of Tooth with city views.',
       },
       {
         'id': 'h6',
@@ -218,45 +309,73 @@ class _ExploreScreenState extends State<ExploreScreen> {
         'price': 5800,
         'rating': 4.4,
         'phone': '+94 912345678',
-        'address': 'Galle Fort',
-        'image': '🏨',
-        'amenities': ['WiFi', 'Sea View'],
+        'address': 'Galle Fort, Sri Lanka',
+        'amenities': ['WiFi', 'Sea View', 'Restaurant', 'Heritage Building'],
+        'description': 'Charming boutique hotel inside historic Galle Fort.',
       },
     ];
 
-    setState(() => _isLoadingHotels = false);
-  }
+    List<HotelModel> loadedHotels = [];
 
-  void _onSearchChanged(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (query.isNotEmpty) {
-        _getSearchSuggestions(query);
-      } else {
-        setState(() => _searchSuggestions = []);
-      }
+    for (var hotel in baseHotels) {
+      String imageUrl = await ImageApiService.getHotelImage(
+        hotel['name'],
+        hotel['location'],
+      );
+      List<String> gallery = await ImageApiService.getHotelGallery(
+        hotel['name'],
+        hotel['location'],
+      );
+
+      loadedHotels.add(
+        HotelModel(
+          id: hotel['id'],
+          name: hotel['name'],
+          location: hotel['location'],
+          price: hotel['price'].toDouble(),
+          rating: hotel['rating'],
+          phone: hotel['phone'],
+          address: hotel['address'],
+          amenities: List<String>.from(hotel['amenities']),
+          description: hotel['description'],
+          imageUrl: imageUrl,
+          galleryImages: gallery,
+        ),
+      );
+    }
+
+    setState(() {
+      _hotels = loadedHotels;
+      _isLoadingHotels = false;
     });
   }
 
-  void _getSearchSuggestions(String query) {
+  // ==================== SEARCH ====================
+  void _onSearchChanged() {
+    final query = _searchController.text;
+    if (query.isEmpty) {
+      setState(() => _searchSuggestions = []);
+      return;
+    }
+
     setState(() => _isLoadingSuggestions = true);
 
     final lowerQuery = query.toLowerCase();
-    final destinationSuggestions = _allDestinations
+    final destinationSuggestions = _destinations
         .where(
           (d) =>
-              d['name'].toLowerCase().contains(lowerQuery) ||
-              d['location'].toLowerCase().contains(lowerQuery),
+              d.name.toLowerCase().contains(lowerQuery) ||
+              d.location.toLowerCase().contains(lowerQuery),
         )
         .map(
           (d) => {
             'type': 'destination',
-            'id': d['id'],
-            'name': d['name'],
-            'location': d['location'],
-            'image': d['image'],
-            'rating': d['rating'],
-            'price': d['price'],
+            'id': d.id,
+            'name': d.name,
+            'location': d.location,
+            'rating': d.rating,
+            'price': d.price,
+            'imageUrl': d.imageUrl,
           },
         )
         .toList();
@@ -264,20 +383,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
     final hotelSuggestions = _hotels
         .where(
           (h) =>
-              h['name'].toLowerCase().contains(lowerQuery) ||
-              h['location'].toLowerCase().contains(lowerQuery),
+              h.name.toLowerCase().contains(lowerQuery) ||
+              h.location.toLowerCase().contains(lowerQuery),
         )
         .map(
           (h) => {
             'type': 'hotel',
-            'id': h['id'],
-            'name': h['name'],
-            'location': h['location'],
-            'phone': h['phone'],
-            'price': h['price'],
-            'rating': h['rating'],
-            'image': h['image'],
-            'amenities': h['amenities'],
+            'id': h.id,
+            'name': h.name,
+            'location': h.location,
+            'rating': h.rating,
+            'price': h.price,
+            'imageUrl': h.imageUrl,
           },
         )
         .toList();
@@ -293,95 +410,156 @@ class _ExploreScreenState extends State<ExploreScreen> {
     setState(() => _searchSuggestions = []);
 
     if (suggestion['type'] == 'destination') {
-      _filterDestinations(suggestion['name']);
-      _showDestinationDetails(suggestion);
+      final destination = _destinations.firstWhere(
+        (d) => d.id == suggestion['id'],
+      );
+      _showDestinationDetails(destination);
     } else if (suggestion['type'] == 'hotel') {
-      _showHotelDetails(suggestion);
+      final hotel = _hotels.firstWhere((h) => h.id == suggestion['id']);
+      _showHotelDetails(hotel);
     }
   }
 
-  void _filterDestinations(String query) {
-    setState(() {
-      _filteredDestinations = _allDestinations
-          .where(
-            (d) =>
-                d['name'].toLowerCase().contains(query.toLowerCase()) ||
-                d['location'].toLowerCase().contains(query.toLowerCase()),
-          )
-          .toList();
-    });
-  }
-
-  void _showDestinationDetails(Map<String, dynamic> destination) {
+  // ==================== SHOW DESTINATION DETAILS ====================
+  void _showDestinationDetails(DestinationWithImages destination) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
         padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            SizedBox(
+              height: 200,
+              child: PageView.builder(
+                itemCount: destination.galleryImages.length + 1,
+                itemBuilder: (context, index) {
+                  final imageUrl = index == 0
+                      ? destination.imageUrl
+                      : destination.galleryImages[index - 1];
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (_, __) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.image_not_supported, size: 50),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
-                Text(
-                  destination['image'],
-                  style: const TextStyle(fontSize: 40),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        destination['name'],
+                        destination.name,
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${destination.location}, ${destination.country}',
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star, size: 14, color: Colors.white),
+                      const SizedBox(width: 4),
                       Text(
-                        '${destination['location']}, ${destination['country']}',
-                        style: const TextStyle(color: Colors.grey),
+                        '${destination.rating}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            Text(
+              destination.description,
+              style: const TextStyle(fontSize: 14, height: 1.5),
+            ),
+            const SizedBox(height: 20),
             Row(
               children: [
-                const Icon(Icons.star, color: Colors.amber, size: 16),
-                const SizedBox(width: 4),
-                Text('${destination['rating']} • ${destination['category']}'),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'LKR ${destination['price']}/person',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color(0xFF3498DB),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _planTripFromDestination(destination);
-                },
-                icon: const Icon(Icons.airplane_ticket),
-                label: const Text('Plan a Trip'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2D9C7C),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Price per person',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      Text(
+                        'LKR ${destination.price}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2D9C7C),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.airplane_ticket),
+                  label: const Text('Plan Trip'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2D9C7C),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -389,409 +567,201 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  void _showHotelDetails(Map<String, dynamic> hotel) {
+  // ==================== SHOW HOTEL DETAILS ====================
+  void _showHotelDetails(HotelModel hotel) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
         padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            SizedBox(
+              height: 200,
+              child: PageView.builder(
+                itemCount: hotel.galleryImages.length + 1,
+                itemBuilder: (context, index) {
+                  final imageUrl = index == 0
+                      ? hotel.imageUrl
+                      : hotel.galleryImages[index - 1];
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (_, __) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.image_not_supported, size: 50),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
-                Text(hotel['image'], style: const TextStyle(fontSize: 40)),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        hotel['name'],
+                        hotel.name,
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            hotel.location,
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star, size: 14, color: Colors.white),
+                      const SizedBox(width: 4),
                       Text(
-                        hotel['location'],
-                        style: const TextStyle(color: Colors.grey),
+                        '${hotel.rating}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 16),
-                const SizedBox(width: 4),
-                Text('${hotel['rating']}'),
-                const SizedBox(width: 16),
-                const Icon(Icons.phone, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(hotel['phone']),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'LKR ${hotel['price']}/night',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color(0xFF2D9C7C),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '📍 ${hotel['address']}',
-              style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 12),
             const Text(
-              'Amenities:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              'Amenities',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: (hotel['amenities'] as List)
+              runSpacing: 8,
+              children: hotel.amenities
                   .map(
-                    (a) =>
-                        Chip(label: Text(a), backgroundColor: Colors.grey[100]),
+                    (a) => Chip(
+                      label: Text(a),
+                      backgroundColor: const Color(0xFF2D9C7C).withOpacity(0.1),
+                    ),
                   )
                   .toList(),
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Call hotel
-                    },
-                    icon: const Icon(Icons.call),
-                    label: const Text('Call'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _planTripWithHotel(hotel);
-                    },
-                    icon: const Icon(Icons.airplane_ticket),
-                    label: const Text('Book Now'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D9C7C),
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            Text(
+              hotel.description,
+              style: const TextStyle(fontSize: 13, height: 1.4),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _planTripFromDestination(Map<String, dynamic> destination) {
-    _selectedDestination = destination;
-    _selectedHotelId = '';
-    _showCreateTripDialog();
-  }
-
-  void _planTripWithHotel(Map<String, dynamic> hotel) {
-    _selectedHotelId = hotel['id'];
-    _selectedDestination = null;
-    _showCreateTripDialog();
-  }
-
-  void _showCreateTripDialog() {
-    final destinationCtrl = TextEditingController(
-      text: _selectedDestination != null ? _selectedDestination!['name'] : '',
-    );
-    final locationCtrl = TextEditingController(
-      text: _selectedDestination != null
-          ? _selectedDestination!['location']
-          : '',
-    );
-
-    DateTime startDate = DateTime.now().add(const Duration(days: 30));
-    DateTime endDate = DateTime.now().add(const Duration(days: 37));
-    int travelers = 2;
-    double budget = 50000;
-    String selectedTransport = 'Flight';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateModal) => Container(
-          height: MediaQuery.of(context).size.height * 0.75,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '✈️ Plan Your Trip',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: destinationCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Destination',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: locationCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Location',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: startDate,
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime.now().add(
-                                    const Duration(days: 365 * 2),
-                                  ),
-                                );
-                                if (picked != null) {
-                                  setStateModal(() => startDate = picked);
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[300]!),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${startDate.day}/${startDate.month}/${startDate.year}',
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: endDate,
-                                  firstDate: startDate,
-                                  lastDate: startDate.add(
-                                    const Duration(days: 30),
-                                  ),
-                                );
-                                if (picked != null) {
-                                  setStateModal(() => endDate = picked);
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[300]!),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${endDate.day}/${endDate.month}/${endDate.year}',
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              initialValue: travelers,
-                              decoration: const InputDecoration(
-                                labelText: 'Travelers',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: [1, 2, 3, 4, 5, 6]
-                                  .map(
-                                    (t) => DropdownMenuItem(
-                                      value: t,
-                                      child: Text(
-                                        '$t ${t == 1 ? 'person' : 'persons'}',
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setStateModal(() => travelers = v!),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              initialValue: budget.toString(),
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Budget (LKR)',
-                                border: OutlineInputBorder(),
-                              ),
-                              onChanged: (v) =>
-                                  budget = double.tryParse(v) ?? 0,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedTransport,
-                        decoration: const InputDecoration(
-                          labelText: 'Transport',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: ['Flight', 'Train', 'Bus', 'Car']
-                            .map(
-                              (t) => DropdownMenuItem(value: t, child: Text(t)),
-                            )
-                            .toList(),
-                        onChanged: (v) =>
-                            setStateModal(() => selectedTransport = v!),
-                      ),
-                      const SizedBox(height: 12),
-                      if (_selectedHotelId.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2D9C7C).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.hotel, color: Color(0xFF2D9C7C)),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Hotel selected: ${_hotels.firstWhere((h) => h['id'] == _selectedHotelId)['name']}',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+              child: Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
+                  const Icon(Icons.phone, color: Color(0xFF2D9C7C)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(hotel.phone)),
+                  const Icon(Icons.location_on, color: Color(0xFF2D9C7C)),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Get hotel name safely
-                        String hotelName = '';
-                        String hotelPhone = '';
-                        String hotelAddress = '';
-
-                        if (_selectedHotelId.isNotEmpty) {
-                          try {
-                            final hotel = _hotels.firstWhere(
-                              (h) => h['id'] == _selectedHotelId,
-                            );
-                            hotelName = hotel['name'];
-                            hotelPhone = hotel['phone'];
-                            hotelAddress = hotel['address'];
-                          } catch (e) {
-                            // Hotel not found
-                          }
-                        }
-
-                        final newTrip = TripPlan(
-                          id: DateTime.now().millisecondsSinceEpoch.toString(),
-                          destination: destinationCtrl.text,
-                          country:
-                              _selectedDestination?['country'] ?? 'Sri Lanka',
-                          countryFlag: '🇱🇰',
-                          image: _selectedDestination?['image'] ?? '✈️',
-                          startDate: startDate,
-                          endDate: endDate,
-                          travelers: travelers,
-                          budget: budget,
-                          accommodation: 'Hotel',
-                          transport: selectedTransport,
-                          activities: ['Sightseeing'],
-                          notes: '',
-                          status: 'Planning',
-                          hotelName: hotelName,
-                          hotelPhone: hotelPhone,
-                          hotelAddress: hotelAddress,
-                        );
-
-                        BucketService.addTrip(newTrip);
-                        Navigator.pop(context);
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('✨ Trip added to your Bucket List!'),
-                            backgroundColor: Color(0xFF2D9C7C),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2D9C7C),
-                      ),
-                      child: const Text('Save Trip'),
+                    child: Text(
+                      hotel.address,
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Price per night',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      Text(
+                        'LKR ${hotel.price}',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2D9C7C),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.book_online),
+                  label: const Text('Book Now'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2D9C7C),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void _filterByCategory(String category) {
+    setState(() {
+      _selectedCategory = category;
+      _filteredDestinations = category == 'All'
+          ? _destinations
+          : _destinations.where((d) => d.category == category).toList();
+    });
   }
 
   @override
@@ -805,14 +775,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ),
         backgroundColor: const Color(0xFF2D9C7C),
         elevation: 0,
+        centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // Focus search field
-              FocusScope.of(context).requestFocus(FocusNode());
-            },
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAllData),
         ],
       ),
       body: Column(
@@ -825,7 +790,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
               children: [
                 TextField(
                   controller: _searchController,
-                  onChanged: _onSearchChanged,
                   decoration: InputDecoration(
                     hintText: '🔍 Search destinations, hotels...',
                     prefixIcon: const Icon(
@@ -843,7 +807,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         : null,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
                     ),
+                    filled: true,
+                    fillColor: Colors.grey[100],
                   ),
                 ),
                 if (_isLoadingSuggestions)
@@ -865,26 +832,33 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       shrinkWrap: true,
                       itemCount: _searchSuggestions.length,
                       itemBuilder: (context, index) => ListTile(
-                        leading: Text(
-                          _searchSuggestions[index]['image'],
-                          style: const TextStyle(fontSize: 28),
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: _searchSuggestions[index]['imageUrl'],
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => Container(
+                              width: 50,
+                              height: 50,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.image),
+                            ),
+                          ),
                         ),
-                        title: Text(_searchSuggestions[index]['name']),
+                        title: Text(
+                          _searchSuggestions[index]['name'],
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         subtitle: Text(
                           _searchSuggestions[index]['type'] == 'hotel'
                               ? '🏨 ${_searchSuggestions[index]['location']} • LKR ${_searchSuggestions[index]['price']}/night'
-                              : '📍 ${_searchSuggestions[index]['location']} • LKR ${_searchSuggestions[index]['price']}/person',
+                              : '📍 ${_searchSuggestions[index]['location']} • ⭐ ${_searchSuggestions[index]['rating']}',
                         ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              size: 14,
-                              color: Colors.amber,
-                            ),
-                            Text(' ${_searchSuggestions[index]['rating']}'),
-                          ],
+                        trailing: const Icon(
+                          Icons.arrow_forward,
+                          color: Color(0xFF2D9C7C),
                         ),
                         onTap: () =>
                             _selectSuggestion(_searchSuggestions[index]),
@@ -894,34 +868,31 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ],
             ),
           ),
+
           // Categories
           SizedBox(
             height: 45,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               itemCount: _categories.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, index) => FilterChip(
                 label: Text(_categories[index]),
                 selected: _selectedCategory == _categories[index],
-                onSelected: (selected) {
-                  setState(() {
-                    _selectedCategory = _categories[index];
-                    if (_selectedCategory == 'All') {
-                      _filteredDestinations = _allDestinations;
-                    } else {
-                      _filteredDestinations = _allDestinations
-                          .where((d) => d['category'] == _selectedCategory)
-                          .toList();
-                    }
-                  });
-                },
-                selectedColor: const Color(0xFF2D9C7C).withOpacity(0.2),
+                onSelected: (_) => _filterByCategory(_categories[index]),
+                selectedColor: const Color(0xFF2D9C7C),
+                checkmarkColor: Colors.white,
+                labelStyle: TextStyle(
+                  color: _selectedCategory == _categories[index]
+                      ? Colors.white
+                      : Colors.black87,
+                ),
               ),
             ),
           ),
-          // Hotels Section - FIXED OVERFLOW ISSUE
+
+          // Hotels Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
@@ -943,81 +914,112 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ],
             ),
           ),
-          // Fixed Hotel List with proper sizing
-          SizedBox(
-            height: 110, // Fixed height to prevent overflow
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _hotels.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (_, index) => GestureDetector(
-                onTap: () => _showHotelDetails(_hotels[index]),
-                child: Container(
-                  width: 150,
-                  padding: const EdgeInsets.all(8), // Reduced padding
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(color: Colors.grey.shade200, blurRadius: 8),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min, // Minimize height
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _hotels[index]['image'],
-                        style: const TextStyle(fontSize: 28), // Reduced size
-                      ),
-                      const SizedBox(height: 2), // Reduced spacing
-                      Text(
-                        _hotels[index]['name'],
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11, // Reduced font size
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        _hotels[index]['location'],
-                        style: const TextStyle(
-                          fontSize: 9, // Reduced font size
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star,
-                            size: 10, // Reduced icon size
-                            color: Colors.amber,
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            '${_hotels[index]['rating']}',
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                          const Spacer(),
-                          Text(
-                            'LKR ${_hotels[index]['price']}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 9, // Reduced font size
-                              color: Color(0xFF2D9C7C),
+
+          _isLoadingHotels
+              ? const SizedBox(
+                  height: 140,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : SizedBox(
+                  height: 140,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _hotels.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (_, index) => GestureDetector(
+                      onTap: () => _showHotelDetails(_hotels[index]),
+                      child: Container(
+                        width: 170,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.shade200,
+                              blurRadius: 8,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(16),
+                              ),
+                              child: CachedNetworkImage(
+                                imageUrl: _hotels[index].imageUrl,
+                                height: 85,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) => Container(
+                                  height: 85,
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.image),
+                                ),
+                                errorWidget: (_, __, ___) => Container(
+                                  height: 85,
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.broken_image),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _hotels[index].name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _hotels[index].location,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.star,
+                                        size: 10,
+                                        color: Colors.amber,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text('${_hotels[index].rating}'),
+                                      const Spacer(),
+                                      Text(
+                                        'LKR ${_hotels[index].price}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                          color: Color(0xFF2D9C7C),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
+
           // Destinations Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1032,138 +1034,172 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ],
             ),
           ),
+
           Expanded(
-            child: _isLoadingDestinations
+            child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredDestinations.isEmpty
                 ? const Center(child: Text('No destinations found'))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _filteredDestinations.length,
-                    itemBuilder: (_, index) => Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(color: Colors.grey.shade200, blurRadius: 8),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(20),
-                            ),
-                            child: Image.network(
-                              _filteredDestinations[index]['imageUrl'],
-                              height: 160,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, __) => Container(
-                                height: 160,
-                                color: const Color(0xFF2D9C7C).withOpacity(0.1),
-                                child: Center(
-                                  child: Text(
-                                    _filteredDestinations[index]['image'],
-                                    style: const TextStyle(fontSize: 50),
-                                  ),
+                    itemBuilder: (_, index) {
+                      final destination = _filteredDestinations[index];
+                      return GestureDetector(
+                        onTap: () => _showDestinationDetails(destination),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.shade200,
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(20),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    CachedNetworkImage(
+                                      imageUrl: destination.imageUrl,
+                                      height: 200,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                      placeholder: (_, __) => Container(
+                                        height: 200,
+                                        color: Colors.grey[200],
+                                        child: const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      ),
+                                      errorWidget: (_, __, ___) => Container(
+                                        height: 200,
+                                        color: Colors.grey[200],
+                                        child: const Icon(
+                                          Icons.image_not_supported,
+                                          size: 50,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 12,
+                                      right: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.6),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.star,
+                                              size: 14,
+                                              color: Colors.amber,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${destination.rating}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        _filteredDestinations[index]['name'],
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.star,
-                                            size: 12,
-                                            color: Colors.white,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${_filteredDestinations[index]['rating']}',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${_filteredDestinations[index]['location']}, ${_filteredDestinations[index]['country']}',
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'LKR ${_filteredDestinations[index]['price']}/person',
+                                      destination.name,
                                       style: const TextStyle(
+                                        fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF3498DB),
-                                        fontSize: 14,
                                       ),
                                     ),
-                                    OutlinedButton(
-                                      onPressed: () => _planTripFromDestination(
-                                        _filteredDestinations[index],
-                                      ),
-                                      style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(
-                                          color: Color(0xFF2D9C7C),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on,
+                                          size: 14,
+                                          color: Colors.grey,
                                         ),
-                                      ),
-                                      child: const Text(
-                                        'Plan Trip',
-                                        style: TextStyle(fontSize: 12),
-                                      ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${destination.location}, ${destination.country}',
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xFF2D9C7C,
+                                            ).withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              15,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            destination.category,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF2D9C7C),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          'LKR ${destination.price}/person',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF3498DB),
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
           ),
         ],

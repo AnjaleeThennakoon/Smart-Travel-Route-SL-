@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'profile_page.dart';
 import 'explore_screen.dart';
 import 'saved_page.dart';
-import 'bucket_page.dart';
+import 'bucket_page.dart'; // ✅ hide BucketPage ඉවත් කරන්න
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,6 +22,14 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   String _userName = 'Traveler';
 
+  final List<Widget> _pages = [
+    const HomeBody(),
+    const ExploreScreen(),
+    const BucketPage(), // ✅ දැන් හරියට වැඩ කරයි
+    const SavedPage(),
+    const ProfilePage(),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -37,7 +45,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadDestinations() async {
     setState(() => _isLoading = true);
-    final destinations = await ApiService.getDestinationsByCategory(_selectedCategory);
+    final destinations = await ApiService.getDestinationsByCategory(
+      _selectedCategory,
+    );
     setState(() {
       _destinations = destinations;
       _isLoading = false;
@@ -65,7 +75,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // --- EMERGENCY MODAL ---
   void _showEmergencySheet() {
     showModalBottomSheet(
       context: context,
@@ -77,20 +86,56 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
+            Container(
+              width: 50,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             const SizedBox(height: 20),
-            Text("Emergency Help", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red)),
+            Text(
+              "Emergency Help",
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
             const SizedBox(height: 20),
-            _buildEmergencyTile(Icons.local_police, "Police (Sri Lanka)", "119", Colors.blue),
-            _buildEmergencyTile(Icons.medical_services, "Ambulance / Suwa Seriya", "1990", Colors.green),
-            _buildEmergencyTile(Icons.local_fire_department, "Fire & Rescue", "110", Colors.orange),
+            _buildEmergencyTile(
+              Icons.local_police,
+              "Police (Sri Lanka)",
+              "119",
+              Colors.blue,
+            ),
+            _buildEmergencyTile(
+              Icons.medical_services,
+              "Ambulance / Suwa Seriya",
+              "1990",
+              Colors.green,
+            ),
+            _buildEmergencyTile(
+              Icons.local_fire_department,
+              "Fire & Rescue",
+              "110",
+              Colors.orange,
+            ),
             const Divider(),
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _buildLocationSearchBtn(Icons.local_hospital, "Near Hospital")),
+                Expanded(
+                  child: _buildLocationSearchBtn(
+                    Icons.local_hospital,
+                    "Near Hospital",
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Expanded(child: _buildLocationSearchBtn(Icons.security, "Near Police")),
+                Expanded(
+                  child: _buildLocationSearchBtn(Icons.security, "Near Police"),
+                ),
               ],
             ),
           ],
@@ -99,31 +144,46 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEmergencyTile(IconData icon, String title, String number, Color color) {
+  Widget _buildEmergencyTile(
+    IconData icon,
+    String title,
+    String number,
+    Color color,
+  ) {
     return ListTile(
-      leading: CircleAvatar(backgroundColor: color.withOpacity(0.1), child: Icon(icon, color: color)),
+      leading: CircleAvatar(
+        backgroundColor: color.withOpacity(0.1),
+        child: Icon(icon, color: color),
+      ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(number, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
-      trailing: IconButton(icon: const Icon(Icons.call, color: Colors.green), onPressed: () {}),
+      subtitle: Text(
+        number,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.call, color: Colors.green),
+        onPressed: () {},
+      ),
     );
   }
 
   Widget _buildLocationSearchBtn(IconData icon, String label) {
     return OutlinedButton.icon(
-      onPressed: () {}, 
+      onPressed: () {},
       icon: Icon(icon, size: 18, color: Colors.black87),
-      label: Text(label, style: const TextStyle(color: Colors.black87, fontSize: 12)),
-      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+      label: Text(
+        label,
+        style: const TextStyle(color: Colors.black87, fontSize: 12),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      ),
     );
   }
-
-  final List<Widget> _pages = [
-    const HomeBody(),
-    const ExploreScreen(),
-    const BucketPage(),
-    const SavedPage(),
-    const ProfilePage(),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -136,21 +196,26 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildHomeContent() {
     return SafeArea(
-      child: SingleChildScrollView( 
+      child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            _buildEmergencyBar(), // Emergency Bar
+            _buildEmergencyBar(),
             _buildSearchBar(),
             _buildBookingShortcuts(),
             _buildCategories(),
             _buildSectionTitle(),
             _isLoading
-                ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
                 : _searchController.text.isEmpty
-                    ? _buildDestinationsList()
-                    : _buildSearchResults(),
+                ? _buildDestinationsList()
+                : _buildSearchResults(),
           ],
         ),
       ),
@@ -168,12 +233,27 @@ class _HomePageState extends State<HomePage> {
             children: [
               Row(
                 children: [
-                  Text('Hey, ', style: GoogleFonts.poppins(fontSize: 18, color: Colors.black87)),
-                  Text('${_userName.toUpperCase()} 👋', 
-                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                  Text(
+                    'Hey, ',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    '${_userName.toUpperCase()} 👋',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
                 ],
               ),
-              const Text('Colombo, Sri Lanka', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text(
+                'Colombo, Sri Lanka',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
             ],
           ),
           Row(
@@ -181,17 +261,34 @@ class _HomePageState extends State<HomePage> {
               Stack(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.notifications_none_outlined, color: Colors.black87, size: 28),
+                    icon: const Icon(
+                      Icons.notifications_none_outlined,
+                      color: Colors.black87,
+                      size: 28,
+                    ),
                     onPressed: () {},
                   ),
                   Positioned(
-                    right: 12, top: 12,
-                    child: Container(height: 10, width: 10, decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2))),
+                    right: 12,
+                    top: 12,
+                    child: Container(
+                      height: 10,
+                      width: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(width: 8),
-              const CircleAvatar(radius: 20, backgroundColor: Color(0xFF3498DB), child: Icon(Icons.person, color: Colors.white, size: 20)),
+              const CircleAvatar(
+                radius: 20,
+                backgroundColor: Color(0xFF3498DB),
+                child: Icon(Icons.person, color: Colors.white, size: 20),
+              ),
             ],
           ),
         ],
@@ -206,12 +303,23 @@ class _HomePageState extends State<HomePage> {
         onTap: _showEmergencySheet,
         child: Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.red.shade100)),
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.red.shade100),
+          ),
           child: Row(
             children: [
               const Icon(Icons.emergency_share, color: Colors.red, size: 24),
               const SizedBox(width: 12),
-              Text("Emergency Help & Numbers", style: GoogleFonts.poppins(color: Colors.red.shade700, fontWeight: FontWeight.w600, fontSize: 13)),
+              Text(
+                "Emergency Help & Numbers",
+                style: GoogleFonts.poppins(
+                  color: Colors.red.shade700,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
               const Spacer(),
               const Icon(Icons.arrow_forward_ios, color: Colors.red, size: 14),
             ],
@@ -225,7 +333,10 @@ class _HomePageState extends State<HomePage> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
       child: Container(
-        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(15)),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(15),
+        ),
         child: TextField(
           controller: _searchController,
           onChanged: _searchPlaces,
@@ -247,14 +358,28 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Book Now", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(
+            "Book Now",
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 15),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildShortcutIcon(Icons.map_outlined, "Trip", () => setState(() => _currentIndex = 2)),
+              _buildShortcutIcon(
+                Icons.map_outlined,
+                "Trip",
+                () => setState(() => _currentIndex = 2),
+              ),
               _buildShortcutIcon(Icons.flight, "Flight", () {}),
-              _buildShortcutIcon(Icons.hotel, "Hotel", () => setState(() => _currentIndex = 1)),
+              _buildShortcutIcon(
+                Icons.hotel,
+                "Hotel",
+                () => setState(() => _currentIndex = 1),
+              ),
               _buildShortcutIcon(Icons.train, "Train", () {}),
               _buildShortcutIcon(Icons.directions_bus, "Bus", () {}),
             ],
@@ -269,9 +394,20 @@ class _HomePageState extends State<HomePage> {
       onTap: onTap,
       child: Column(
         children: [
-          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade200)), child: Icon(icon, size: 22, color: Colors.black87)),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Icon(icon, size: 22, color: Colors.black87),
+          ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
         ],
       ),
     );
@@ -282,7 +418,16 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10), child: Text("Categories", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+          child: Text(
+            "Categories",
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
         SizedBox(
           height: 45,
           child: ListView(
@@ -295,8 +440,23 @@ class _HomePageState extends State<HomePage> {
                 child: Container(
                   margin: const EdgeInsets.only(right: 12),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  decoration: BoxDecoration(color: isSelected ? const Color(0xFFDFFF00) : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
-                  child: Center(child: Text(category, style: TextStyle(color: Colors.black, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 13))),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFDFFF00) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Center(
+                    child: Text(
+                      category,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
                 ),
               );
             }).toList(),
@@ -312,19 +472,60 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Popular Trips', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-          TextButton(onPressed: () => setState(() => _currentIndex = 1), child: const Text('See all', style: TextStyle(color: Colors.grey))),
+          Text(
+            'Popular Trips',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          TextButton(
+            onPressed: () => setState(() => _currentIndex = 1),
+            child: const Text('See all', style: TextStyle(color: Colors.grey)),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildDestinationsList() {
-    return ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.symmetric(horizontal: 25), itemCount: _destinations.length, itemBuilder: (context, index) => _buildDestinationCard(_destinations[index]));
+    if (_destinations.isEmpty) {
+      return const Center(child: Text('No destinations found'));
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 25),
+      itemCount: _destinations.length,
+      itemBuilder: (context, index) =>
+          _buildDestinationCard(_destinations[index]),
+    );
   }
 
   Widget _buildSearchResults() {
-    return ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.symmetric(horizontal: 25), itemCount: _searchResults.length, itemBuilder: (context, index) => _buildDestinationCard(_searchResults[index]));
+    if (_searchResults.isEmpty && _searchController.text.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No results found for "${_searchController.text}"',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 25),
+      itemCount: _searchResults.length,
+      itemBuilder: (context, index) =>
+          _buildDestinationCard(_searchResults[index]),
+    );
   }
 
   Widget _buildDestinationCard(Map<String, dynamic> destination) {
@@ -332,12 +533,97 @@ class _HomePageState extends State<HomePage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       height: 180,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), image: DecorationImage(image: NetworkImage(destination['imageUrl']), fit: BoxFit.cover)),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        image: DecorationImage(
+          image: NetworkImage(destination['imageUrl']),
+          fit: BoxFit.cover,
+        ),
+      ),
       child: Stack(
         children: [
-          Positioned.fill(child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withOpacity(0.7)])))),
-          Positioned(top: 10, right: 10, child: CircleAvatar(backgroundColor: Colors.white, radius: 18, child: IconButton(icon: Icon(isSaved ? Icons.favorite : Icons.favorite_border, color: Colors.red, size: 18), onPressed: () => setState(() => ApiService.toggleSaveDestination(destination))))),
-          Positioned(bottom: 15, left: 15, right: 15, child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(destination['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)), Text('LKR ${destination['price']}/person', style: const TextStyle(color: Colors.white70, fontSize: 12))]), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)), child: Row(children: [const Icon(Icons.star, color: Colors.amber, size: 14), Text(" ${destination['rating']}", style: const TextStyle(color: Colors.white, fontSize: 12))]))])),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: CircleAvatar(
+              backgroundColor: Colors.white,
+              radius: 18,
+              child: IconButton(
+                icon: Icon(
+                  isSaved ? Icons.favorite : Icons.favorite_border,
+                  color: Colors.red,
+                  size: 18,
+                ),
+                onPressed: () => setState(
+                  () => ApiService.toggleSaveDestination(destination),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 15,
+            left: 15,
+            right: 15,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      destination['name'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      'LKR ${destination['price']}/person',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                      Text(
+                        " ${destination['rating']}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -346,7 +632,10 @@ class _HomePageState extends State<HomePage> {
   Widget _buildBottomNavBar() {
     return Container(
       height: 70,
-      decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade200))),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
@@ -362,15 +651,28 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildNavItem(IconData icon, int index) {
     final isSelected = _currentIndex == index;
-    return GestureDetector(onTap: () => setState(() => _currentIndex = index), child: Icon(icon, color: isSelected ? Colors.black : Colors.grey, size: 28));
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      child: Icon(
+        icon,
+        color: isSelected ? Colors.black : Colors.grey,
+        size: 28,
+      ),
+    );
   }
 
   @override
-  void dispose() { _searchController.dispose(); super.dispose(); }
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 }
 
 class HomeBody extends StatelessWidget {
   const HomeBody({super.key});
+
   @override
-  Widget build(BuildContext context) { return const SizedBox.shrink(); }
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
+  }
 }
