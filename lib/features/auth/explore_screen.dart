@@ -1,66 +1,10 @@
 // lib/features/auth/explore_screen.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../services/image_api_service.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'bucket_page.dart';
 
-// ==================== DESTINATION MODEL ====================
-class DestinationWithImages {
-  final String id;
-  final String name;
-  final String location;
-  final String country;
-  final double rating;
-  final double price;
-  final String category;
-  final String description;
-  String imageUrl;
-  List<String> galleryImages;
-
-  DestinationWithImages({
-    required this.id,
-    required this.name,
-    required this.location,
-    required this.country,
-    required this.rating,
-    required this.price,
-    required this.category,
-    required this.description,
-    this.imageUrl = '',
-    this.galleryImages = const [],
-  });
-}
-
-// ==================== HOTEL MODEL ====================
-class HotelModel {
-  final String id;
-  final String name;
-  final String location;
-  final double price;
-  final double rating;
-  final String phone;
-  final String address;
-  final List<String> amenities;
-  final String description;
-  String imageUrl;
-  List<String> galleryImages;
-
-  HotelModel({
-    required this.id,
-    required this.name,
-    required this.location,
-    required this.price,
-    required this.rating,
-    required this.phone,
-    required this.address,
-    required this.amenities,
-    required this.description,
-    this.imageUrl = '',
-    this.galleryImages = const [],
-  });
-}
-
-// ==================== EXPLORE SCREEN ====================
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
 
@@ -534,28 +478,78 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         style: TextStyle(color: Colors.grey),
                       ),
                       Text(
-                        'LKR ${destination.price}',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2D9C7C),
-                        ),
+                        hotel['location'],
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     ],
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.airplane_ticket),
-                  label: const Text('Plan Trip'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D9C7C),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.star, color: Colors.amber, size: 16),
+                const SizedBox(width: 4),
+                Text('${hotel['rating']}'),
+                const SizedBox(width: 16),
+                const Icon(Icons.phone, size: 16, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text(hotel['phone']),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'LKR ${hotel['price']}/night',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Color(0xFF2D9C7C),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '📍 ${hotel['address']}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Amenities:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              children: (hotel['amenities'] as List)
+                  .map(
+                    (a) =>
+                        Chip(label: Text(a), backgroundColor: Colors.grey[100]),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Call hotel
+                    },
+                    icon: const Icon(Icons.call),
+                    label: const Text('Call'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _planTripWithHotel(hotel);
+                    },
+                    icon: const Icon(Icons.airplane_ticket),
+                    label: const Text('Book Now'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D9C7C),
                     ),
                   ),
                 ),

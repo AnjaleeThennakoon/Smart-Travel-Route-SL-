@@ -1,16 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
 class ApiService {
   static const String baseUrl = 'https://your-api-url.com/api';
   static bool useMockApi = true;
 
-  // Store current user data
-  static Map<String, dynamic>? _currentUser;
-
-  static Map<String, dynamic>? get currentUser => _currentUser;
-
-  // Get current user name
+ static Map<String, dynamic>? _currentUser;
+   static Map<String, dynamic>? get currentUser => _currentUser;
   static String getUserName() {
     if (_currentUser != null) {
       return _currentUser!['full_name'] ??
@@ -19,18 +14,12 @@ class ApiService {
     }
     return 'Traveler';
   }
-
-  // Set current user after login/register
   static void setCurrentUser(Map<String, dynamic> user) {
     _currentUser = user;
   }
-
-  // Clear current user on logout
   static void clearCurrentUser() {
     _currentUser = null;
   }
-
-  // Register user
   static Future<Map<String, dynamic>> registerUser({
     required String fullName,
     required String email,
@@ -55,7 +44,6 @@ class ApiService {
           'message': 'Password must be at least 6 characters.',
         };
       }
-
       final userData = {
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
         'full_name': fullName,
@@ -67,7 +55,6 @@ class ApiService {
       };
 
       _currentUser = userData;
-
       return {
         'success': true,
         'data': userData,
@@ -116,8 +103,6 @@ class ApiService {
       };
     }
   }
-
-  // Login user
   static Future<Map<String, dynamic>> loginUser({
     required String email,
     required String password,
@@ -199,22 +184,9 @@ class ApiService {
 
   static String getCountryCode(String countryName) {
     final Map<String, String> countryCodes = {
-      'Sri Lanka': '+94',
-      'USA': '+1',
-      'UK': '+44',
-      'Canada': '+1',
-      'Australia': '+61',
-      'India': '+91',
-      'Vietnam': '+84',
-      'Thailand': '+66',
-      'Malaysia': '+60',
-      'Singapore': '+65',
-      'Japan': '+81',
-      'South Korea': '+82',
-      'China': '+86',
-      'Germany': '+49',
-      'France': '+33',
-    };
+      'Sri Lanka': '+94','USA': '+1','UK': '+44','Canada': '+1','Australia': '+61','India': '+91','Vietnam': '+84','Thailand': '+66',
+      'Malaysia': '+60','Singapore': '+65','Japan': '+81','South Korea': '+82','China': '+86','Germany': '+49','France': '+33',
+      };
     return countryCodes[countryName] ?? '+00';
   }
 
@@ -455,18 +427,12 @@ class ApiService {
           'https://images.unsplash.com/photo-1585939535763-5f6b18f1c0b3?w=500',
     },
   ];
-
-  // ==================== SAVED DESTINATIONS ====================
-
-  // Saved destinations storage
   static final List<Map<String, dynamic>> _savedDestinations = [];
 
   // Get saved destinations
   static List<Map<String, dynamic>> getSavedDestinations() {
     return _savedDestinations;
   }
-
-  // Toggle save destination (add or remove)
   static void toggleSaveDestination(Map<String, dynamic> destination) {
     final index = _savedDestinations.indexWhere(
       (d) => d['id'] == destination['id'],
@@ -477,14 +443,29 @@ class ApiService {
       _savedDestinations.removeAt(index);
     }
   }
-
-  // Check if destination is saved
   static bool isDestinationSaved(String id) {
     return _savedDestinations.any((d) => d['id'] == id);
   }
-
-  // Clear all saved destinations (optional)
   static void clearAllSavedDestinations() {
     _savedDestinations.clear();
+  }
+  static double calculateTotalFare(double distance, double pricePerKm, double driverDaily) {
+    // (දුර * කිලෝමීටරයක මිල) + රියදුරුගේ දෛනික ආහාර/නවාතැන් ගාස්තු
+    return (distance * pricePerKm) + driverDaily;
+  }
+  static Future<Map<String, dynamic>> getWeather(String city) async {
+    const apiKey = "57fc4852444627a5dee14fcd761839dc"; 
+    final url = "https://api.openweathermap.org/data/2.5/weather?q=$city&units=metric&appid=$apiKey";
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception("Failed to load weather");
+      }
+    } catch (e) {
+      return {"main": {"temp": 0}, "weather": [{"main": "Offline"}]};
+    }
   }
 }

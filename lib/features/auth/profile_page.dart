@@ -1,9 +1,11 @@
 import 'package:auboo_travel/features/auth/bucket_page.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 import '../../routers/app_router.dart';
 import '../auth/my_trips_page.dart';
 import 'wishlist_page.dart';
+import 'payment_details_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -18,14 +20,13 @@ class ProfilePage extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Header Section with Stack
+            // Header Section with Overlapping Stats Card
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
                 _buildHeaderBackground(context),
                 _buildStatsCard(context),
-                // The Back Arrow Button
                 Positioned(
                   top: 50,
                   left: 20,
@@ -39,7 +40,7 @@ class ProfilePage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 60),
+            const SizedBox(height: 60), // Space for the overlapping card
             _buildMenuItem(
               Icons.location_on_outlined,
               "My Trips",
@@ -62,6 +63,8 @@ class ProfilePage extends StatelessWidget {
                 );
               },
             ),
+
+            // Menu Items
             _buildMenuItem(Icons.credit_card, "Payment Methods", Colors.green),
             _buildMenuItem(
               Icons.notifications_none,
@@ -69,6 +72,9 @@ class ProfilePage extends StatelessWidget {
               Colors.purple,
             ),
             _buildMenuItem(Icons.settings_outlined, "Settings", Colors.grey),
+            // Inside ProfilePage column:
+
+            // Logout Button
             _buildMenuItem(
               Icons.logout,
               "Logout",
@@ -76,13 +82,15 @@ class ProfilePage extends StatelessWidget {
               isLogout: true,
               onTap: () => _showLogoutDialog(context),
             ),
+            const SizedBox(height: 30),
           ],
         ),
       ),
     );
   }
 
-  // 1. The Purple Gradient Header
+  // --- Helper Widgets ---
+
   Widget _buildHeaderBackground(BuildContext context) {
     return Container(
       height: 280,
@@ -104,7 +112,7 @@ class ProfilePage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            ApiService.getUserName(), // Use ApiService directly
+            ApiService.getUserName(), // Dynamic name
             style: const TextStyle(
               color: Colors.white,
               fontSize: 22,
@@ -112,7 +120,7 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
           const Text(
-            "Traveller",
+            "Traveller", // You can make this dynamic too
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
@@ -120,7 +128,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // 2. The Overlapping Stats Card
   Widget _buildStatsCard(BuildContext context) {
     return Positioned(
       bottom: -40,
@@ -193,17 +200,27 @@ class ProfilePage extends StatelessWidget {
             color: isLogout ? Colors.redAccent : Colors.black87,
           ),
         ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              )
+            : null,
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: onTap ?? () {},
+        onTap:
+            onTap ??
+            () {
+              // General navigation can go here
+            },
       ),
     );
   }
 
-  // Logout Logic
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Logout'),
         content: const Text('Are you sure you want to exit?'),
         actions: [
@@ -220,7 +237,12 @@ class ProfilePage extends StatelessWidget {
                 (route) => false,
               );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),
         ],

@@ -1,14 +1,14 @@
-import 'package:auboo_travel/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:auboo_travel/services/api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'profile_page.dart';
 import 'explore_screen.dart';
 import 'saved_page.dart';
-import 'bucket_page.dart'; // ✅ hide BucketPage ඉවත් කරන්න
+import 'bucket_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -22,25 +22,11 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   String _userName = 'Traveler';
 
-  final List<Widget> _pages = [
-    const HomeBody(),
-    const ExploreScreen(),
-    const BucketPage(), // ✅ දැන් හරියට වැඩ කරයි
-    const SavedPage(),
-    const ProfilePage(),
-  ];
-
   @override
   void initState() {
     super.initState();
-    _loadUserName();
-    _loadDestinations();
-  }
-
-  void _loadUserName() {
-    setState(() {
-      _userName = ApiService.getUserName();
-    });
+    _user = ApiService.getUserName();
+    _load();
   }
 
   Future<void> _loadDestinations() async {
@@ -75,6 +61,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // --- EMERGENCY MODAL ---
   void _showEmergencySheet() {
     showModalBottomSheet(
       context: context,
@@ -185,8 +172,23 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  final List<Widget> _pages = [
+    const HomeBody(),
+    const ExploreScreen(),
+    const BucketPage(),
+    const SavedPage(),
+    const ProfilePage(),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      const SizedBox.shrink(),
+      const ExploreScreen(),
+      const BucketPage(),
+      const SavedPage(),
+      const ProfilePage(),
+    ];
     return Scaffold(
       backgroundColor: Colors.white,
       body: _currentIndex == 0 ? _buildHomeContent() : _pages[_currentIndex],
@@ -201,7 +203,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            _buildEmergencyBar(),
+            _buildEmergencyBar(), // Emergency Bar
             _buildSearchBar(),
             _buildBookingShortcuts(),
             _buildCategories(),
@@ -489,9 +491,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDestinationsList() {
-    if (_destinations.isEmpty) {
-      return const Center(child: Text('No destinations found'));
-    }
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -503,21 +502,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildSearchResults() {
-    if (_searchResults.isEmpty && _searchController.text.isNotEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'No results found for "${_searchController.text}"',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      );
-    }
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -670,7 +654,6 @@ class _HomePageState extends State<HomePage> {
 
 class HomeBody extends StatelessWidget {
   const HomeBody({super.key});
-
   @override
   Widget build(BuildContext context) {
     return const SizedBox.shrink();
