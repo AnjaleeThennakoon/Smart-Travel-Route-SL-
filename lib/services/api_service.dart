@@ -1,9 +1,16 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/hotel_model.dart';
+import '../models/trip_model.dart';
+import '../models/visiting_place_model.dart';
 
 class ApiService {
   static const String baseUrl = 'https://your-api-url.com/api';
+  static const String _overpassApiUrl =
+      'https://overpass-api.de/api/interpreter';
   static final _supabase = Supabase.instance.client; // ✅ ADD THIS
 
   static Map<String, dynamic>? _currentUser;
@@ -252,6 +259,86 @@ class ApiService {
     }
   }
 
+  static List<String> _overpassCategoryClauses(String category) {
+    return switch (category) {
+      'Hotels' => ['node["tourism"="hotel"]', 'node["tourism"="guest_house"]'],
+      'Restaurants' => [
+        'node["amenity"="restaurant"]',
+        'node["amenity"="cafe"]',
+      ],
+      'Gas Stations' => ['node["amenity"="fuel"]'],
+      'Visiting Places' => [
+        'node["tourism"="attraction"]',
+        'node["tourism"="museum"]',
+        'node["leisure"="park"]',
+      ],
+      'Other' => [
+        'node["amenity"="bank"]',
+        'node["shop"]',
+        'node["amenity"="hospital"]',
+      ],
+      'All' => [
+        'node["tourism"="hotel"]',
+        'node["tourism"="guest_house"]',
+        'node["amenity"="restaurant"]',
+        'node["amenity"="cafe"]',
+        'node["amenity"="fuel"]',
+        'node["tourism"="attraction"]',
+        'node["tourism"="museum"]',
+        'node["leisure"="park"]',
+        'node["amenity"="bank"]',
+        'node["shop"]',
+      ],
+      _ => ['node["name"]'],
+    };
+  }
+
+  static Future<List<Map<String, dynamic>>> searchNearbyPlacesByCategory({
+    required String category,
+    required double latitude,
+    required double longitude,
+    int radiusMeters = 4000,
+  }) async {
+    final clauses = _overpassCategoryClauses(
+      category,
+    ).map((c) => '$c(around:$radiusMeters,$latitude,$longitude);').join();
+    final query = '[out:json][timeout:25];($clauses);out body;';
+
+    final response = await http.post(
+      Uri.parse(_overpassApiUrl),
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'data=${Uri.encodeQueryComponent(query)}',
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Overpass search failed (${response.statusCode})');
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final elements = (body['elements'] as List<dynamic>? ?? const []);
+    return elements
+        .map((item) {
+          final map = item as Map<String, dynamic>;
+          final tags = (map['tags'] as Map<String, dynamic>? ?? const {});
+          final lat = (map['lat'] as num?)?.toDouble() ?? 0;
+          final lon = (map['lon'] as num?)?.toDouble() ?? 0;
+          final name = (tags['name'] ?? tags['brand'] ?? category).toString();
+          final street = tags['addr:street']?.toString() ?? '';
+          final city = tags['addr:city']?.toString() ?? '';
+          final address = [street, city].where((e) => e.isNotEmpty).join(', ');
+          return {
+            'name': name,
+            'address': address,
+            'latitude': lat,
+            'longitude': lon,
+          };
+        })
+        .where(
+          (p) =>
+              (p['latitude'] as double) != 0 && (p['longitude'] as double) != 0,
+        )
+        .toList();
+  }
+
   // Saved destinations (keep in memory for now)
   static final List<Map<String, dynamic>> _savedDestinations = [];
   static List<Map<String, dynamic>> getSavedDestinations() =>
@@ -270,19 +357,351 @@ class ApiService {
     }
   }
 
-  // Saved trip plans for Profile -> My Trips
-  static final List<Map<String, dynamic>> _savedTrips = [];
-
-  static List<Map<String, dynamic>> getSavedTrips() => List.unmodifiable(
-    _savedTrips,
-  );
-
-  static void addSavedTrip(Map<String, dynamic> trip) {
-    _savedTrips.insert(0, trip);
+  static String _resolveCurrentUserId() {
+    final userMap = _currentUser;
+    final fromMap = userMap?['user_id'] ?? userMap?['id'];
+    final fromAuth = _supabase.auth.currentUser?.id;
+    final resolved = (fromMap ?? fromAuth ?? '').toString();
+    if (resolved.isEmpty) {
+      throw Exception('No logged-in user found.');
+    }
+    return resolved;
   }
 
-  static void deleteSavedTrip(String id) {
-    _savedTrips.removeWhere((trip) => trip['id'] == id);
+  static Future<List<Trip>> getUserTrips(String userId) async {
+    final rows = await _supabase
+        .from('trips')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+    return (rows as List<dynamic>)
+        .map((row) => Trip.fromMap(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<List<Trip>> getCurrentUserTrips() async {
+    return getUserTrips(_resolveCurrentUserId());
+  }
+
+  static Future<List<TripPlace>> insertTripPlacesBatch({
+    required String tripId,
+    required List<TripPlace> places,
+  }) async {
+    if (places.isEmpty) return const [];
+    final payload = places.asMap().entries.map((entry) {
+      final place = entry.value;
+      return {
+        'trip_id': tripId,
+        'place_name': place.placeName,
+        'latitude': place.latitude,
+        'longitude': place.longitude,
+        'visit_order': place.visitOrder == 0 ? entry.key + 1 : place.visitOrder,
+        'distance_from_previous': place.distanceFromPrevious,
+        'duration_from_previous': place.durationFromPrevious,
+      };
+    }).toList();
+
+    final rows = await _supabase.from('trip_places').insert(payload).select();
+    return (rows as List<dynamic>)
+        .map((row) => TripPlace.fromMap(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<TripWithPlaces> saveTripForCurrentUser({
+    required String tripName,
+    required String startLocation,
+    required double totalDistance,
+    required int totalDuration,
+    String? description,
+    required List<TripPlace> places,
+  }) async {
+    final userId = _resolveCurrentUserId();
+    final tripRow = await _supabase
+        .from('trips')
+        .insert({
+          'user_id': userId,
+          'trip_name': tripName,
+          'description': description,
+          'start_location': startLocation,
+          'total_distance': totalDistance,
+          'total_duration': totalDuration,
+        })
+        .select()
+        .single();
+
+    final trip = Trip.fromMap(tripRow);
+    final savedPlaces = await insertTripPlacesBatch(
+      tripId: trip.tripId,
+      places: places,
+    );
+    return TripWithPlaces(trip: trip, places: savedPlaces);
+  }
+
+  static Future<Hotel> saveHotelForCurrentUser({
+    required String hotelName,
+    String? description,
+    String? contactNumber,
+    double? pricePerNight,
+    List<String>? photos,
+    required double latitude,
+    required double longitude,
+    String category = 'Hotels',
+  }) async {
+    final userId = _resolveCurrentUserId();
+    final hotelRow = await _supabase
+        .from('hotels')
+        .insert({
+          'user_id': userId,
+          'hotel_name': hotelName,
+          'description': description,
+          'contact_number': contactNumber,
+          'price_per_night': pricePerNight,
+          'photos': photos,
+          'latitude': latitude,
+          'longitude': longitude,
+          'category': category,
+        })
+        .select()
+        .single();
+
+    return Hotel.fromMap(hotelRow);
+  }
+
+  static Future<String> uploadHotelPhoto(
+    String hotelId,
+    String filePath,
+  ) async {
+    try {
+      final file = await _readFile(filePath);
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${filePath.split('/').last}';
+      final path = 'hotels/$hotelId/$fileName';
+
+      await _supabase.storage
+          .from('place_photos')
+          .uploadBinary(path, Uint8List.fromList(file));
+
+      final publicUrl = _supabase.storage
+          .from('place_photos')
+          .getPublicUrl(path);
+
+      return publicUrl;
+    } catch (e) {
+      throw Exception('Failed to upload photo: $e');
+    }
+  }
+
+  static Future<void> updateHotelPhotos(
+    String hotelId,
+    List<String> photoUrls,
+  ) async {
+    await _supabase
+        .from('hotels')
+        .update({'photos': photoUrls})
+        .eq('hotel_id', hotelId);
+  }
+
+  static Future<List<Hotel>> getCurrentUserHotels() async {
+    final rows = await _supabase
+        .from('hotels')
+        .select()
+        .eq('user_id', _resolveCurrentUserId())
+        .order('created_at', ascending: false);
+
+    return (rows as List<dynamic>)
+        .map((row) => Hotel.fromMap(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<List<Hotel>> getAllHotels() async {
+    final rows = await _supabase
+        .from('hotels')
+        .select(
+          'hotel_id,user_id,hotel_name,description,contact_number,photos,price_per_night,latitude,longitude,category,created_at',
+        )
+        .order('created_at', ascending: false);
+
+    final hotels = (rows as List<dynamic>)
+        .map((row) => Hotel.fromMap(row as Map<String, dynamic>))
+        .toList();
+
+    debugPrint('getAllHotels() returned ${hotels.length} hotels');
+    return hotels;
+  }
+
+  static Future<String> uploadVisitingPlacePhoto(
+    String visitingPlaceId,
+    String filePath,
+  ) async {
+    try {
+      final file = await _readFile(filePath);
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${filePath.split('/').last}';
+      final path = 'visiting_places/$visitingPlaceId/$fileName';
+
+      await _supabase.storage
+          .from('place_photos')
+          .uploadBinary(path, Uint8List.fromList(file));
+
+      final publicUrl = _supabase.storage
+          .from('place_photos')
+          .getPublicUrl(path);
+
+      return publicUrl;
+    } catch (e) {
+      throw Exception('Failed to upload photo: $e');
+    }
+  }
+
+  static Future<List<int>> _readFile(String filePath) async {
+    try {
+      return await File(filePath).readAsBytes();
+    } catch (e) {
+      throw Exception('Failed to read file: $e');
+    }
+  }
+
+  static Future<VisitingPlace> saveVisitingPlaceForCurrentUser({
+    required String name,
+    String? description,
+    List<String>? photos,
+    required double latitude,
+    required double longitude,
+    String category = 'Visiting Places',
+  }) async {
+    final userId = _resolveCurrentUserId();
+    final visitingPlaceRow = await _supabase
+        .from('visiting_places')
+        .insert({
+          'user_id': userId,
+          'name': name,
+          'description': description,
+          'photos': photos,
+          'latitude': latitude,
+          'longitude': longitude,
+          'category': category,
+        })
+        .select()
+        .single();
+
+    return VisitingPlace.fromMap(visitingPlaceRow);
+  }
+
+  static Future<List<VisitingPlace>> getCurrentUserVisitingPlaces() async {
+    final rows = await _supabase
+        .from('visiting_places')
+        .select()
+        .eq('user_id', _resolveCurrentUserId())
+        .order('created_at', ascending: false);
+
+    return (rows as List<dynamic>)
+        .map((row) => VisitingPlace.fromMap(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<List<VisitingPlace>> getAllVisitingPlaces() async {
+    final rows = await _supabase
+        .from('visiting_places')
+        .select(
+          'visiting_place_id,user_id,name,description,photos,latitude,longitude,category,created_at',
+        )
+        .order('created_at', ascending: false);
+
+    final visitingPlaces = (rows as List<dynamic>)
+        .map((row) => VisitingPlace.fromMap(row as Map<String, dynamic>))
+        .toList();
+
+    debugPrint('getAllVisitingPlaces() returned ${visitingPlaces.length} visiting places');
+    return visitingPlaces;
+  }
+
+  static Future<void> updateVisitingPlacePhotos(
+    String visitingPlaceId,
+    List<String> photoUrls,
+  ) async {
+    await _supabase
+        .from('visiting_places')
+        .update({'photos': photoUrls})
+        .eq('visiting_place_id', visitingPlaceId);
+  }
+
+  static Future<TripWithPlaces> getTripDetailsWithPlaces(String tripId) async {
+    final tripRow = await _supabase
+        .from('trips')
+        .select()
+        .eq('trip_id', tripId)
+        .single();
+    final placeRows = await _supabase
+        .from('trip_places')
+        .select()
+        .eq('trip_id', tripId)
+        .order('visit_order', ascending: true);
+
+    return TripWithPlaces(
+      trip: Trip.fromMap(tripRow),
+      places: (placeRows as List<dynamic>)
+          .map((row) => TripPlace.fromMap(row as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  static Future<void> deleteTrip(String tripId) async {
+    await _supabase.from('trips').delete().eq('trip_id', tripId);
+  }
+
+  static Future<void> deleteHotel(String hotelId) async {
+    await _supabase.from('hotels').delete().eq('hotel_id', hotelId);
+  }
+
+  static Future<void> deleteVisitingPlace(String visitingPlaceId) async {
+    await _supabase.from('visiting_places').delete().eq('visiting_place_id', visitingPlaceId);
+  }
+
+  // Hotel Ratings Methods
+  static Future<double> getHotelAverageRating(String hotelId) async {
+    final rows = await _supabase
+        .from('hotel_ratings')
+        .select('rating')
+        .eq('hotel_id', hotelId);
+
+    if (rows.isEmpty) return 0.0;
+
+    final ratings = (rows as List<dynamic>).map((row) => row['rating'] as int).toList();
+    final sum = ratings.reduce((a, b) => a + b);
+    return sum / ratings.length;
+  }
+
+  static Future<int?> getUserHotelRating(String hotelId) async {
+    final userId = _resolveCurrentUserId();
+    final rows = await _supabase
+        .from('hotel_ratings')
+        .select('rating')
+        .eq('hotel_id', hotelId)
+        .eq('user_id', userId);
+
+    if (rows.isEmpty) return null;
+    return (rows.first)['rating'] as int;
+  }
+
+  static Future<void> submitHotelRating(String hotelId, int rating) async {
+    final userId = _resolveCurrentUserId();
+    
+    await _supabase
+        .from('hotel_ratings')
+        .upsert({
+          'hotel_id': hotelId,
+          'user_id': userId,
+          'rating': rating,
+        });
+  }
+
+  static Future<int> getHotelRatingCount(String hotelId) async {
+    final rows = await _supabase
+        .from('hotel_ratings')
+        .select('rating_id')
+        .eq('hotel_id', hotelId);
+
+    return rows.length;
   }
 
   static final List<Map<String, dynamic>> _mockDestinations = [

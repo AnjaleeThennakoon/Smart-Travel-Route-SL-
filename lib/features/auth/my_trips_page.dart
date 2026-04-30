@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../models/trip_model.dart';
 import '../../services/api_service.dart';
 
 class MyTripsPage extends StatefulWidget {
@@ -9,7 +10,9 @@ class MyTripsPage extends StatefulWidget {
 }
 
 class _MyTripsPageState extends State<MyTripsPage> {
-  List<Map<String, dynamic>> _myTrips = [];
+  List<Trip> _myTrips = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -17,10 +20,27 @@ class _MyTripsPageState extends State<MyTripsPage> {
     _loadTrips();
   }
 
-  void _loadTrips() {
+  Future<void> _loadTrips() async {
     setState(() {
-      _myTrips = ApiService.getSavedTrips();
+      _isLoading = true;
+      _error = null;
     });
+    try {
+      final trips = await ApiService.getCurrentUserTrips();
+      if (!mounted) return;
+      setState(() {
+        _myTrips = trips;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -41,7 +61,20 @@ class _MyTripsPageState extends State<MyTripsPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _myTrips.isEmpty
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  ),
+                )
+              : _myTrips.isEmpty
           ? const Center(
               child: Text(
                 'No trips saved yet.\nSave a route from Show Path screen.',
@@ -60,12 +93,18 @@ class _MyTripsPageState extends State<MyTripsPage> {
     );
   }
 
-  Widget _buildTripCard(Map<String, dynamic> trip) {
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Widget _buildTripCard(Trip trip) {
     return InkWell(
       borderRadius: BorderRadius.circular(15),
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => SavedTripDetailsPage(trip: trip)),
+          MaterialPageRoute(
+            builder: (_) => SavedTripDetailsPage(tripId: trip.tripId),
+          ),
         );
       },
       child: Container(
@@ -104,7 +143,7 @@ class _MyTripsPageState extends State<MyTripsPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    (trip['title'] ?? '') as String,
+                    trip.tripName,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -114,7 +153,7 @@ class _MyTripsPageState extends State<MyTripsPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    (trip['date'] ?? '') as String,
+                    _formatDate(trip.createdAt),
                     style: const TextStyle(
                       color: Colors.blue,
                       fontSize: 12,
@@ -128,7 +167,7 @@ class _MyTripsPageState extends State<MyTripsPage> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          (trip['location'] ?? '') as String,
+                          trip.startLocation,
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 12,
@@ -146,8 +185,8 @@ class _MyTripsPageState extends State<MyTripsPage> {
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                onPressed: () {
-                  ApiService.deleteSavedTrip((trip['id'] ?? '') as String);
+                onPressed: () async {
+                  await ApiService.deleteTrip(trip.tripId);
                   _loadTrips();
                 },
               ),
@@ -160,26 +199,12 @@ class _MyTripsPageState extends State<MyTripsPage> {
 }
 
 class SavedTripDetailsPage extends StatelessWidget {
-  final Map<String, dynamic> trip;
+  final String tripId;
 
-  const SavedTripDetailsPage({super.key, required this.trip});
-
-  List<String> get _stops {
-    final rawStops = trip['stops'];
-    if (rawStops is List) {
-      return rawStops.map((e) => e.toString()).toList();
-    }
-    return const [];
-  }
+  const SavedTripDetailsPage({super.key, required this.tripId});
 
   @override
   Widget build(BuildContext context) {
-    final distance = (trip['distance'] ?? '').toString();
-    final duration = (trip['duration'] ?? '').toString();
-    final routeText = _stops.isNotEmpty
-        ? _stops.join('  →  ')
-        : (trip['location'] ?? '').toString();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
@@ -213,47 +238,69 @@ class SavedTripDetailsPage extends StatelessWidget {
               color: Colors.white,
               boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  (trip['title'] ?? '').toString(),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Distance: $distance   •   Duration: $duration',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  routeText,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.black54),
-                ),
-                const SizedBox(height: 14),
-                if (_stops.isNotEmpty) ...[
-                  const Text(
-                    'Stops',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  ..._stops.asMap().entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Text(
-                        '${entry.key + 1}. ${entry.value}',
-                        style: const TextStyle(color: Colors.black87),
+            child: FutureBuilder<TripWithPlaces>(
+              future: ApiService.getTripDetailsWithPlaces(tripId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return Text(
+                    'Failed to load trip details.',
+                    style: const TextStyle(color: Colors.redAccent),
+                  );
+                }
+
+                final details = snapshot.data!;
+                final trip = details.trip;
+                final places = details.places;
+                final routeText = places.isNotEmpty
+                    ? places.map((p) => p.placeName).join('  →  ')
+                    : trip.startLocation;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      trip.tripName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
                       ),
                     ),
-                  ),
-                ],
-              ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Distance: ${trip.totalDistance.toStringAsFixed(1)} km   •   Duration: ${trip.totalDuration} min',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      routeText,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                    const SizedBox(height: 14),
+                    if (places.isNotEmpty) ...[
+                      const Text(
+                        'Stops',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      ...places.map(
+                        (place) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            '${place.visitOrder}. ${place.placeName}',
+                            style: const TextStyle(color: Colors.black87),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
           ),
         ],

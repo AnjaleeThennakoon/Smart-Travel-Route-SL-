@@ -5,6 +5,7 @@ import '../../routers/app_router.dart';
 import '../auth/my_trips_page.dart';
 import 'wishlist_page.dart';
 import 'payment_details_page.dart';
+import 'my_added_places_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -39,7 +40,6 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 60),
 
             // --- Menu Items Section ---
-            
             _buildMenuItem(
               Icons.location_on_outlined,
               "My Trips",
@@ -52,7 +52,19 @@ class ProfilePage extends StatelessWidget {
               },
             ),
 
-           
+            _buildMenuItem(
+              Icons.place_outlined,
+              "My Added Places",
+              Colors.orange,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MyAddedPlacesPage(),
+                  ),
+                );
+              },
+            ),
 
             _buildMenuItem(
               Icons.favorite_border,
@@ -222,9 +234,12 @@ class ProfilePage extends StatelessWidget {
             color: isLogout ? Colors.redAccent : Colors.black87,
           ),
         ),
-        subtitle: subtitle != null 
-          ? Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)) 
-          : null,
+        subtitle: subtitle != null
+            ? Text(
+                subtitle,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              )
+            : null,
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         onTap: onTap,
       ),
@@ -234,7 +249,9 @@ class ProfilePage extends StatelessWidget {
   void _showFeatureNote(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature feature ensures fair pricing and safety for tourists!'),
+        content: Text(
+          '$feature feature ensures fair pricing and safety for tourists!',
+        ),
         behavior: SnackBarBehavior.floating,
         backgroundColor: const Color(0xFF2D9C7C),
       ),

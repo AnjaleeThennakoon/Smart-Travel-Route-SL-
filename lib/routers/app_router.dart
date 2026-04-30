@@ -7,6 +7,8 @@ import '../features/auth/explore_screen.dart';
 import '../features/auth/saved_page.dart';
 import '../features/auth/bucket_page.dart';
 import '../features/auth/supabase_todos_page.dart';
+import '../features/auth/add_places.dart';
+import '../features/auth/hotel_page.dart';
 import 'package:auboo_travel/screens/onboarding_screen.dart';
 
 class AppRouter {
@@ -20,6 +22,8 @@ class AppRouter {
   static const String saved = '/saved';
   static const String bucket = '/bucket';
   static const String supabase = '/supabase';
+  static const String addPlaces = '/add_places';
+  static const String hotel = '/hotel';
 
   // Route generator
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
@@ -69,6 +73,18 @@ class AppRouter {
       case bucket:
         return MaterialPageRoute(
           builder: (_) => const BucketPage(),
+          settings: settings,
+        );
+
+      case addPlaces:
+        return MaterialPageRoute(
+          builder: (_) => const AddPlacesPage(),
+          settings: settings,
+        );
+
+      case hotel:
+        return MaterialPageRoute(
+          builder: (_) => const HotelPage(),
           settings: settings,
         );
 

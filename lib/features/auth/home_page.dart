@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:auboo_travel/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../models/trip_model.dart';
+import '../../routers/app_router.dart';
 import 'profile_page.dart';
 import 'explore_screen.dart';
 import 'add_page.dart';
@@ -17,7 +19,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _curr = 0;
   String _cat = 'All', _user = 'Traveler';
-  List<Map<String, dynamic>> _dest = [], _search = [];
+  List<Trip> _popularTrips = [];
+  List<Trip> _searchResults = [];
+  String _searchQuery = '';
   bool _loading = true;
   final _ctrl = TextEditingController();
 
@@ -30,11 +34,44 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final data = await ApiService.getDestinationsByCategory(_cat);
-    setState(() {
-      _dest = data;
-      _loading = false;
-    });
+    try {
+      final trips = await ApiService.getCurrentUserTrips();
+      final filteredTrips = _filterTripsByCategory(trips);
+      setState(() {
+        _popularTrips = filteredTrips;
+        _searchResults = _searchQuery.isEmpty
+            ? []
+            : _filterTripsBySearch(filteredTrips, _searchQuery);
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() {
+        _popularTrips = [];
+        _searchResults = [];
+        _loading = false;
+      });
+    }
+  }
+
+  List<Trip> _filterTripsByCategory(List<Trip> trips) {
+    if (_cat == 'All') return trips;
+    final query = _cat.toLowerCase();
+    return trips.where((trip) {
+      final combined =
+          '${trip.tripName} ${trip.description ?? ''} ${trip.startLocation}'
+              .toLowerCase();
+      return combined.contains(query);
+    }).toList();
+  }
+
+  List<Trip> _filterTripsBySearch(List<Trip> trips, String query) {
+    final searchTerm = query.toLowerCase();
+    return trips.where((trip) {
+      final combined =
+          '${trip.tripName} ${trip.startLocation} ${trip.description ?? ''}'
+              .toLowerCase();
+      return combined.contains(searchTerm);
+    }).toList();
   }
 
   void _showSheet(Widget child) => showModalBottomSheet(
@@ -239,14 +276,10 @@ class _HomePageState extends State<HomePage> {
     padding: const EdgeInsets.all(25),
     child: TextField(
       controller: _ctrl,
-      onChanged: (q) async {
-        final r = q.isEmpty
-            ? <Map<String, dynamic>>[]
-            : await ApiService.searchPlaces(q);
-        setState(() => _search = r);
-      },
+      readOnly: true,
+      onTap: () => Navigator.pushNamed(context, AppRouter.addPlaces),
       decoration: InputDecoration(
-        hintText: 'Find destinations...',
+        hintText: 'Find places...',
         prefixIcon: const Icon(Icons.search),
         filled: true,
         fillColor: Colors.grey[100],
@@ -279,7 +312,7 @@ class _HomePageState extends State<HomePage> {
           Icons.hotel,
           "Hotel",
           Colors.purple,
-          () => setState(() => _curr = 1),
+          () => Navigator.pushNamed(context, AppRouter.hotel),
         ),
         _shortcut(
           Icons.local_taxi,
@@ -384,83 +417,87 @@ class _HomePageState extends State<HomePage> {
   );
 
   Widget _list() {
-    final l = _ctrl.text.isEmpty ? _dest : _search;
+    final trips = _searchQuery.isEmpty ? _popularTrips : _searchResults;
+    if (trips.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+        child: Text(
+          'No trips available yet. Save your first trip to see it here.',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 25),
-      itemCount: l.length,
-      itemBuilder: (c, i) => _card(l[i]),
+      itemCount: trips.length,
+      itemBuilder: (c, i) => _card(trips[i]),
     );
   }
 
-  Widget _card(Map<String, dynamic> d) => Container(
+  Widget _card(Trip trip) => Container(
     margin: const EdgeInsets.only(bottom: 20),
-    height: 180,
+    height: 160,
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(20),
-      image: DecorationImage(
-        image: NetworkImage(d['imageUrl']),
-        fit: BoxFit.cover,
+      gradient: const LinearGradient(
+        colors: [Color(0xFF4A90E2), Color(0xFF1B3A8A)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
     ),
-    child: Stack(
-      children: [
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 15,
-          left: 15,
-          right: 15,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    d['name'],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+              const Icon(Icons.travel_explore, color: Colors.white, size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  trip.tripName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
                   ),
-                  Text(
-                    'LKR ${d['price']}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 14),
-                    Text(
-                      " ${d['rating']}",
-                      style: const TextStyle(color: Colors.white, fontSize: 11),
-                    ),
-                  ],
                 ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          Text(
+            trip.startLocation.isNotEmpty
+                ? trip.startLocation
+                : 'Unknown route',
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            trip.description ?? 'No description available',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const Spacer(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${trip.totalDistance.toStringAsFixed(1)} km • ${trip.totalDuration} min',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              Text(
+                trip.createdAt.toLocal().toString().split(' ')[0],
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+          ),
+        ],
+      ),
     ),
   );
 

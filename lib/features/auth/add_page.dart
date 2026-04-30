@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
+import '../../models/trip_model.dart';
 import '../../services/api_service.dart';
+import 'hotel_page.dart';
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const String _orsApiKey =
@@ -24,6 +26,42 @@ class Place {
     required this.latLng,
   });
 }
+
+List<Place> _nearestNeighborOrder(List<Place> source) {
+  if (source.length <= 2) return List<Place>.from(source);
+  final remaining = List<Place>.from(source);
+  final ordered = <Place>[remaining.removeAt(0)];
+
+  while (remaining.isNotEmpty) {
+    final current = ordered.last;
+    remaining.sort((a, b) {
+      final da = _distanceKm(current.latLng, a.latLng);
+      final db = _distanceKm(current.latLng, b.latLng);
+      return da.compareTo(db);
+    });
+    ordered.add(remaining.removeAt(0));
+  }
+
+  return ordered;
+}
+
+double _distanceKm(LatLng a, LatLng b) {
+  const r = 6371.0;
+  final dLat = _degToRad(b.latitude - a.latitude);
+  final dLng = _degToRad(b.longitude - a.longitude);
+  final sinDLat = math.sin(dLat / 2);
+  final sinDLng = math.sin(dLng / 2);
+  final aa =
+      sinDLat * sinDLat +
+      math.cos(_degToRad(a.latitude)) *
+          math.cos(_degToRad(b.latitude)) *
+          sinDLng *
+          sinDLng;
+  final c = 2 * math.atan2(math.sqrt(aa), math.sqrt(1 - aa));
+  return r * c;
+}
+
+double _degToRad(double d) => d * 3.141592653589793 / 180;
 
 // ─── MAIN ENTRY ──────────────────────────────────────────────────────────────
 void main() => runApp(const _App());
@@ -221,6 +259,30 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
     );
   }
 
+  void _openHotelsPage() {
+    if (_addedPlaces.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Add at least 2 places to find hotels along the route.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final ordered = _nearestNeighborOrder(_addedPlaces);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => HotelPage(
+          routeWaypoints: ordered.map((p) => p.latLng).toList(),
+          routeLabel: '${ordered.first.name} → ${ordered.last.name}',
+        ),
+      ),
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -337,6 +399,7 @@ class _MapPageState extends State<MapPage> with SingleTickerProviderStateMixin {
                     onRemove: _removePlace,
                     onTap: (p) => _mapController.move(p.latLng, 15),
                     onShowPath: _openShortestPathPage,
+                    onShowHotels: _openHotelsPage,
                   ),
                 ),
               ],
@@ -596,12 +659,14 @@ class _AddedPlacesSheet extends StatelessWidget {
   final ValueChanged<int> onRemove;
   final ValueChanged<Place> onTap;
   final VoidCallback onShowPath;
+  final VoidCallback onShowHotels;
 
   const _AddedPlacesSheet({
     required this.places,
     required this.onRemove,
     required this.onTap,
     required this.onShowPath,
+    required this.onShowHotels,
   });
 
   @override
@@ -753,7 +818,7 @@ class _AddedPlacesSheet extends StatelessWidget {
               ),
             ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -771,6 +836,30 @@ class _AddedPlacesSheet extends StatelessWidget {
                 icon: const Icon(Icons.route_rounded),
                 label: const Text(
                   'Show Path',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: places.length >= 2 ? onShowHotels : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF1565C0),
+                  disabledBackgroundColor: Colors.white24,
+                  disabledForegroundColor: Colors.white60,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.hotel_rounded),
+                label: const Text(
+                  'Hotels Along Route',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -931,33 +1020,71 @@ class _ShortestPathPageState extends State<ShortestPathPage> {
     return '$minutes min';
   }
 
+  double _parseDistanceKm(String value) {
+    final match = RegExp(r'([\d.]+)').firstMatch(value);
+    final number = double.tryParse(match?.group(1) ?? '') ?? 0;
+    if (value.toLowerCase().contains(' m') &&
+        !value.toLowerCase().contains('km')) {
+      return number / 1000;
+    }
+    return number;
+  }
+
+  int _parseDurationMinutes(String value) {
+    final lower = value.toLowerCase();
+    final hMatch = RegExp(r'(\d+)\s*h').firstMatch(lower);
+    final mMatch = RegExp(r'(\d+)\s*m').firstMatch(lower);
+    if (hMatch != null || mMatch != null) {
+      final h = int.tryParse(hMatch?.group(1) ?? '') ?? 0;
+      final m = int.tryParse(mMatch?.group(1) ?? '') ?? 0;
+      return (h * 60) + m;
+    }
+    final minMatch = RegExp(r'(\d+)').firstMatch(lower);
+    return int.tryParse(minMatch?.group(1) ?? '') ?? 0;
+  }
+
   Future<void> _saveRouteToMyTrips() async {
     if (_orderedPlaces.length < 2 || _isSaving) return;
     setState(() => _isSaving = true);
     try {
-      final now = DateTime.now();
       final title =
           '${_orderedPlaces.first.name} to ${_orderedPlaces.last.name} Route';
       final location = _orderedPlaces.map((p) => p.name).join(' → ');
-      final summary = _distance.isNotEmpty || _duration.isNotEmpty
-          ? '$_distance • $_duration'
-          : '${_orderedPlaces.length} stops';
+      final tripPlaces = _orderedPlaces.asMap().entries.map((entry) {
+        final p = entry.value;
+        return TripPlace(
+          tripPlaceId: '',
+          tripId: '',
+          placeName: p.name,
+          latitude: p.latLng.latitude,
+          longitude: p.latLng.longitude,
+          visitOrder: entry.key + 1,
+          distanceFromPrevious: 0,
+          durationFromPrevious: 0,
+        );
+      }).toList();
 
-      ApiService.addSavedTrip({
-        'id': now.microsecondsSinceEpoch.toString(),
-        'title': title,
-        'date': '${now.day}/${now.month}/${now.year}',
-        'location': location,
-        'summary': summary,
-        'stops': _orderedPlaces.map((p) => p.name).toList(),
-        'distance': _distance,
-        'duration': _duration,
-      });
+      await ApiService.saveTripForCurrentUser(
+        tripName: title,
+        startLocation: location,
+        totalDistance: _parseDistanceKm(_distance),
+        totalDuration: _parseDurationMinutes(_duration),
+        description: 'Route with ${_orderedPlaces.length} stops',
+        places: tripPlaces,
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Route saved to My Trips.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save trip: $e'),
           behavior: SnackBarBehavior.floating,
         ),
       );
