@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../routers/app_router.dart';
+import '../../../services/api_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,6 +14,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -21,33 +23,138 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _handleSignIn() {
+  Future<void> _handleSignIn() async {
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Sign in successful!')));
-      Navigator.pushReplacementNamed(context, AppRouter.home);
+      setState(() => _isLoading = true);
+
+      try {
+        final result = await ApiService.loginUser(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        debugPrint('Login result: $result'); // ← temporary debug line
+
+        if (mounted) {
+          setState(() => _isLoading = false);
+
+          if (result['success'] == true) {
+            debugPrint('✅ Logged in as: ${result['data']}');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Sign in successful!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            Navigator.pushReplacementNamed(context, AppRouter.home);
+          } else {
+            debugPrint('❌ Login failed: ${result['message']}');
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                title: const Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Login Failed'),
+                  ],
+                ),
+                content: Text(result['message'] ?? 'Invalid email or password'),
+                actions: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2C3E50),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+      } on Exception catch (e) {
+        debugPrint('❌ Exception: $e');
+        if (mounted) {
+          setState(() => _isLoading = false);
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Error'),
+              content: Text(e.toString()),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     }
   }
 
-  void _handleForgotPassword() {
+  Future<void> _handleForgotPassword() async {
+    final emailController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Reset Password'),
-        content: const Text('Send a password reset link to your email?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter your email to receive a reset link.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final email = emailController.text.trim();
               Navigator.pop(context);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Reset link sent!')));
+
+              if (email.isEmpty) return;
+
+              try {
+                await ApiService.resetPassword(email);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Reset link sent! Check your email.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
             },
             child: const Text('Send'),
           ),
@@ -80,12 +187,11 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Ayubo Logo / Brand - Beautiful Design
+                    // Ayubo Logo
                     Container(
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
-                          // Glowing gradient text
                           ShaderMask(
                             shaderCallback: (bounds) => const LinearGradient(
                               colors: [
@@ -119,6 +225,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
+
                     // Login Card
                     Container(
                       decoration: BoxDecoration(
@@ -158,6 +265,7 @@ class _LoginPageState extends State<LoginPage> {
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 30),
+
                               // Email Field
                               TextFormField(
                                 controller: _emailController,
@@ -201,6 +309,7 @@ class _LoginPageState extends State<LoginPage> {
                                 },
                               ),
                               const SizedBox(height: 20),
+
                               // Password Field
                               TextFormField(
                                 controller: _passwordController,
@@ -256,6 +365,7 @@ class _LoginPageState extends State<LoginPage> {
                                 },
                               ),
                               const SizedBox(height: 12),
+
                               // Forgot Password
                               Align(
                                 alignment: Alignment.centerRight,
@@ -271,9 +381,10 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                               const SizedBox(height: 30),
+
                               // Sign In Button
                               ElevatedButton(
-                                onPressed: _handleSignIn,
+                                onPressed: _isLoading ? null : _handleSignIn,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF2C3E50),
                                   foregroundColor: Colors.white,
@@ -285,15 +396,20 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   elevation: 3,
                                 ),
-                                child: const Text(
-                                  'Sign In',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(
+                                        color: Colors.white,
+                                      )
+                                    : const Text(
+                                        'Sign In',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                               ),
                               const SizedBox(height: 25),
+
                               // OR Divider
                               Row(
                                 children: [
@@ -321,6 +437,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ],
                               ),
                               const SizedBox(height: 25),
+
                               // Social Login Buttons
                               Row(
                                 children: [
@@ -402,6 +519,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ],
                               ),
                               const SizedBox(height: 25),
+
                               // Sign Up Link
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,

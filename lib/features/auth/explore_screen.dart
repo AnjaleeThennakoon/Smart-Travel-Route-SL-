@@ -482,30 +482,38 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-  child: ElevatedButton.icon(
-    onPressed: () {
-      // 1. දැනට විවෘතව ඇති Modal Bottom Sheet එක වසන්න
-      Navigator.pop(context); 
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // 1. දැනට විවෘතව ඇති Modal Bottom Sheet එක වසන්න
+                      Navigator.pop(context);
 
-      // 2. PaymentDetailsPage වෙත දත්ත සමඟ ගමන් කරන්න
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PaymentDetailsPage(
-            // හෝටලයේ මිල String එකක් නම් එය double එකකට convert කිරීම මෙහිදී වැදගත් වේ
-            amount: double.tryParse(hotel['price'].toString()) ?? 0.0, 
-            hotelName: hotel['name'],
-          ),
-        ),
-      );
-    },
-    icon: const Icon(Icons.airplane_ticket, color: Colors.white),
-    label: const Text('Book Now', style: TextStyle(color: Colors.white)),
-    style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFF2D9C7C),
-    ),
-  ),
-),
+                      // 2. PaymentDetailsPage වෙත දත්ත සමඟ ගමන් කරන්න
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentDetailsPage(
+                            // හෝටලයේ මිල String එකක් නම් එය double එකකට convert කිරීම මෙහිදී වැදගත් වේ
+                            amount:
+                                double.tryParse(hotel['price'].toString()) ??
+                                0.0,
+                            hotelName: hotel['name'],
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.airplane_ticket,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Book Now',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D9C7C),
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
@@ -818,6 +826,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ),
         backgroundColor: const Color(0xFF2D9C7C),
         elevation: 0,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -1074,7 +1083,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                               height: 160,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, __) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 height: 160,
                                 color: const Color(0xFF2D9C7C).withOpacity(0.1),
                                 child: Center(
