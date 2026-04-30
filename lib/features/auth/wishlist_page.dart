@@ -24,6 +24,48 @@ class WishlistPage extends StatelessWidget {
         "rating": "4.8",
         "image": "https://picsum.photos/id/1039/400/400",
       },
+      {
+        "name": "Ella Rock",
+        "location": "Ella, Sri Lanka",
+        "rating": "4.6",
+        "image": "https://picsum.photos/id/1043/400/400",
+      },
+      {
+        "name": "Galle Fort",
+        "location": "Galle, Sri Lanka",
+        "rating": "4.8",
+        "image": "https://picsum.photos/id/1050/400/400",
+      },
+      {
+        "name": "Yala National Park",
+        "location": "Hambantota, Sri Lanka",
+        "rating": "4.7",
+        "image": "https://picsum.photos/id/1062/400/400",
+      },
+      {
+        "name": "Adam’s Peak",
+        "location": "Nallathanniya, Sri Lanka",
+        "rating": "4.9",
+        "image": "https://picsum.photos/id/1074/400/400",
+      },
+      {
+        "name": "Hikkaduwa Beach",
+        "location": "Hikkaduwa, Sri Lanka",
+        "rating": "4.6",
+        "image": "https://picsum.photos/id/1084/400/400",
+      },
+      {
+        "name": "Udawalawe National Park",
+        "location": "Udawalawe, Sri Lanka",
+        "rating": "4.7",
+        "image": "https://picsum.photos/id/1080/400/400",
+      },
+      {
+        "name": "Nuwara Eliya",
+        "location": "Central Province, Sri Lanka",
+        "rating": "4.8",
+        "image": "https://picsum.photos/id/1018/400/400",
+      },
     ];
 
     return Scaffold(
