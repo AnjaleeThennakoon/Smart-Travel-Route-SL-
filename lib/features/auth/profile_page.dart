@@ -39,7 +39,6 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 60),
 
             // --- Menu Items Section ---
-            
             _buildMenuItem(
               Icons.location_on_outlined,
               "My Trips",
@@ -51,8 +50,6 @@ class ProfilePage extends StatelessWidget {
                 );
               },
             ),
-
-           
 
             _buildMenuItem(
               Icons.favorite_border,
@@ -170,9 +167,9 @@ class ProfilePage extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildStatItem("12", "Trips"),
-            _buildStatItem("8", "Countries"),
-            _buildStatItem("24", "Saved"),
+            _buildStatItem("10", "Trips"),
+            _buildStatItem("5", "Visited Countries"),
+            _buildStatItem("20", "Saved Places"),
           ],
         ),
       ),
@@ -222,9 +219,12 @@ class ProfilePage extends StatelessWidget {
             color: isLogout ? Colors.redAccent : Colors.black87,
           ),
         ),
-        subtitle: subtitle != null 
-          ? Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)) 
-          : null,
+        subtitle: subtitle != null
+            ? Text(
+                subtitle,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              )
+            : null,
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         onTap: onTap,
       ),
@@ -234,7 +234,9 @@ class ProfilePage extends StatelessWidget {
   void _showFeatureNote(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature feature ensures fair pricing and safety for tourists!'),
+        content: Text(
+          '$feature feature ensures for  fair pricing and safety for tourists!',
+        ),
         behavior: SnackBarBehavior.floating,
         backgroundColor: const Color(0xFF2D9C7C),
       ),
