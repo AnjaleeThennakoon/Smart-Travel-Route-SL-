@@ -9,7 +9,7 @@ class OnboardingScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
+          
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -53,7 +53,7 @@ class OnboardingScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 30),
                 
-                // Navigation Button
+                
                 GestureDetector(
                   onTap: () {
                    
